@@ -18,7 +18,7 @@ go run . --help
 
 ```sh
 # 1) Create a new app using the interactive wizard
-fullkek new
+fullkek-starter new
 
 # 2) Next steps after generation
 make go
