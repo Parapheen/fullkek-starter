@@ -1,0 +1,87 @@
+package http
+
+import (
+    "context"
+    "fmt"
+    "net/http"
+    "time"
+)
+
+// Config controls the HTTP server bootstrap.
+type Config struct {
+    Addr string
+}
+
+type Server struct {
+    cfg    Config
+    router *Router
+    server *http.Server
+}
+
+// NewServer constructs a net/http server with a ServeMux that serves HTML content.
+func NewServer(cfg Config) *Server {
+    if cfg.Addr == "" {
+        cfg.Addr = ":3333"
+    }
+
+    router := NewRouter()
+    mux := http.NewServeMux()
+    router.Register(mux)
+
+    staticDir := http.Dir("public")
+    staticHandler := http.FileServer(staticDir)
+
+    handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+        if req.URL.Path != "/" {
+            if file, err := staticDir.Open(req.URL.Path); err == nil {
+                _ = file.Close()
+                staticHandler.ServeHTTP(w, req)
+                return
+            }
+        }
+        mux.ServeHTTP(w, req)
+    })
+
+    srv := &http.Server{
+        Addr:    cfg.Addr,
+        Handler: handler,
+    }
+
+    return &Server{cfg: cfg, router: router, server: srv}
+}
+
+// Listen blocks until the server stops or the context is cancelled.
+func (s *Server) Listen(ctx context.Context) error {
+    errCh := make(chan error, 1)
+
+    go func() {
+        fmt.Printf("Serving {{ .AppName }} via net/http on %s\n", s.cfg.Addr)
+        if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            errCh <- err
+        }
+        close(errCh)
+    }()
+
+    select {
+    case <-ctx.Done():
+        shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
+        if err := s.server.Shutdown(shutdownCtx); err != nil {
+            return err
+        }
+        if err, ok := <-errCh; ok {
+            return err
+        }
+        return nil
+    case err, ok := <-errCh:
+        if !ok {
+            return nil
+        }
+        return err
+    }
+}
+
+// Router exposes the configured router instance.
+func (s *Server) Router() *Router {
+    return s.router
+}

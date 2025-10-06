@@ -1,0 +1,29 @@
+package app
+
+import (
+    "context"
+    "fmt"
+
+    httptransport "{{ .ModulePath }}/internal/transport/http"
+)
+
+// App wires together the transports for your application.
+type App struct {
+    server *httptransport.Server
+}
+
+// New constructs an App ready to run.
+func New(ctx context.Context) (*App, error) {
+    srv := httptransport.NewServer(httptransport.Config{
+        Addr: ":3333",
+    })
+
+    return &App{server: srv}, nil
+}
+
+// Run starts the HTTP server.
+func (a *App) Run(ctx context.Context) error {
+    fmt.Println("Starting {{ .AppName }}...")
+    return a.server.Listen(ctx)
+}
+

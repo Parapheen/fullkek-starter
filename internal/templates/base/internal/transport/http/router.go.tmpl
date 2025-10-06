@@ -1,0 +1,19 @@
+package http
+
+import (
+    "fmt"
+)
+
+// Router encapsulates the routing configuration.
+type Router struct{}
+
+// NewRouter sets up the routing skeleton for the generated project.
+func NewRouter() *Router {
+    return &Router{}
+}
+
+// Describe returns a human-readable description of the routing skeleton.
+func (r *Router) Describe() string {
+    return fmt.Sprintf("router stub for {{ .AppName }}")
+}
+

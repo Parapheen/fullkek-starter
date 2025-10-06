@@ -1,0 +1,218 @@
+package http
+
+import (
+	"fmt"
+	"net/http"
+	"path/filepath"
+{{- if .Stack.HasFeature "frontend-htmx" }}
+	"sync/atomic"
+{{- end }}
+)
+
+var indexPage = filepath.Join("web", "templates", "pages", "index.html")
+
+type Router struct {
+{{- if .Stack.HasFeature "frontend-htmx" }}
+	exampleCounter atomic.Int64
+{{- end }}
+}
+
+// NewRouter sets up handlers for the standard net/http stack.
+func NewRouter() *Router {
+	return &Router{}
+}
+
+// Register wires the handlers into the provided ServeMux.
+func (r *Router) Register(mux *http.ServeMux) {
+	mux.HandleFunc("/", r.index)
+	mux.HandleFunc("/healthz", r.health)
+	
+	{{- if or (.Stack.HasFeature "frontend-htmx") (.Stack.HasFeature "frontend-fixi") }}
+	// Example HTMX/Fixi endpoints — delete these routes if you keep the UI but not the demo APIs.
+	mux.HandleFunc("/api/counter", r.apiCounter)
+	mux.HandleFunc("/api/increment", r.apiIncrement)
+	mux.HandleFunc("/api/todos", r.apiTodos)
+	{{- if and (.Stack.HasFeature "frontend-htmx") (has "Basecoat" .Stack.Tags) }}
+	mux.HandleFunc("/fragments/toast/success", r.toastSuccess)
+	{{- end }}
+	{{- end }}
+}
+
+func (r *Router) index(w http.ResponseWriter, req *http.Request) {
+	http.ServeFile(w, req, indexPage)
+}
+
+func (r *Router) health(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("ok"))
+}
+
+{{- if .Stack.HasFeature "frontend-htmx" }}
+
+// HTMX Example Endpoints
+// apiCounter is an example HTMX endpoint that renders the counter widget.
+func (r *Router) apiCounter(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	count := r.exampleCounter.Load()
+{{- if has "Basecoat" .Stack.Tags }}
+	fmt.Fprintf(w, `<div class="card space-y-4">
+	<header class="flex items-start justify-between gap-3">
+		<section>
+			<h3 class="font-semibold text-base">Server counter</h3>
+			<p class="text-sm text-muted-foreground">Rendered from a Go handler via HTMX.</p>
+		</section>
+		<span class="badge badge-outline">HTMX</span>
+	</header>
+	<section class="space-y-1">
+		<p class="text-sm text-muted-foreground">Current value</p>
+		<span id="count" class="text-3xl font-semibold">%d</span>
+	</section>
+	<footer class="flex gap-2">
+		<button class="btn" hx-post="/api/increment" hx-target="#count" hx-swap="innerHTML">Increment</button>
+	</footer>
+</div>`, count)
+{{- else }}
+	fmt.Fprintf(w, `<div class="stack-panel">
+		<p class="stack-body-copy mb-3">Server response! Count: <span id="count" class="font-semibold text-cyan-500">%d</span></p>
+		<p class="text-slate-400 text-sm">This content was loaded from the server using HTMX.</p>
+		<button class="stack-button mt-2" hx-post="/api/increment" hx-target="#count" hx-swap="innerHTML">
+			Increment
+		</button>
+	</div>`, count)
+{{- end }}
+}
+
+// apiIncrement is an example HTMX endpoint that bumps the counter.
+func (r *Router) apiIncrement(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	count := r.exampleCounter.Add(1)
+	fmt.Fprintf(w, "%d", count)
+}
+
+// apiTodos is an example HTMX endpoint that returns a todo list fragment.
+func (r *Router) apiTodos(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	todos := []struct {
+		Title string
+		Done  bool
+	}{
+		{"Learn HTMX basics", true},
+		{"Build server-side components", true},
+		{"Create interactive UI without JavaScript", false},
+		{"Deploy your app", false},
+	}
+
+{{- if has "Basecoat" .Stack.Tags }}
+	html := `<div class="card space-y-4"><header class="space-y-1"><h3 class="font-semibold text-base">Todo list</h3><p class="text-sm text-muted-foreground">Loaded from the server using HTMX.</p></header><ul class="grid gap-2 text-sm">`
+	for _, todo := range todos {
+		status := "Pending"
+		badgeClass := "badge-outline"
+		icon := `<svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m5 12 5 5 9-11" /></svg>`
+		if !todo.Done {
+			icon = `<svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 6h.01M4.93 19.07A10 10 0 1 1 19.07 4.93 10 10 0 0 1 4.93 19.07z" /></svg>`
+		} else {
+			status = "Done"
+			badgeClass = "badge"
+		}
+		html += fmt.Sprintf(`<li class="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-slate-950/40 px-4 py-3">
+			<span class="flex items-center gap-2 text-slate-100">%s%s</span>
+			<span class="%s">%s</span>
+		</li>`, icon, todo.Title, badgeClass, status)
+	}
+	html += `</ul></div>`
+{{- else }}
+	html := `<div class="stack-panel"><ul class="stack-list">`
+	for _, todo := range todos {
+		status := "❌"
+		className := "text-slate-400"
+		if todo.Done {
+			status = "✅"
+			className = "text-emerald-500"
+		}
+		html += fmt.Sprintf(`<li class="stack-list-item %s">%s %s</li>`, className, status, todo.Title)
+	}
+	html += `</ul></div>`
+{{- end }}
+
+	fmt.Fprint(w, html)
+}
+
+{{- else if .Stack.HasFeature "frontend-fixi" }}
+
+// Fixi.js Example Endpoints
+func (r *Router) apiCounter(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+{{- if has "Basecoat" .Stack.Tags }}
+	fmt.Fprintf(w, `<div class="card space-y-3">
+	<header>
+		<h3 class="font-semibold text-base">Fixi.js fetched content</h3>
+	</header>
+	<section class="space-y-1 text-sm text-muted-foreground">
+		<p>The counter value is coming from the server.</p>
+		<p class="text-lg font-semibold text-slate-100">Counter: 42</p>
+	</section>
+</div>`)
+{{- else }}
+	fmt.Fprintf(w, `<div class="stack-panel">
+		<p class="stack-body-copy">Fixi.js successfully fetched this content!</p>
+		<p class="font-semibold text-cyan-500">Counter: 42</p>
+	</div>`)
+{{- end }}
+}
+
+func (r *Router) apiIncrement(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, "43")
+}
+
+func (r *Router) apiTodos(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	todos := []string{
+		"Learn Fixi.js patterns",
+		"Build reactive components",
+		"Deploy your app",
+	}
+
+{{- if has "Basecoat" .Stack.Tags }}
+	html := `<div class="card space-y-3"><header><h3 class="font-semibold text-base">Server todos</h3></header><ul class="grid gap-2">`
+	for _, todo := range todos {
+		html += fmt.Sprintf(`<li class="rounded-md border border-border/50 bg-slate-950/40 px-3 py-2 text-sm">%s</li>`, todo)
+	}
+	html += `</ul></div>`
+{{- else }}
+	html := `<ul class="stack-list">`
+	for _, todo := range todos {
+		html += fmt.Sprintf(`<li class="stack-list-item">%s</li>`, todo)
+	}
+	html += `</ul>`
+{{- end }}
+
+	fmt.Fprint(w, html)
+}
+
+{{- end }}
+
+{{- if and (.Stack.HasFeature "frontend-htmx") (has "Basecoat" .Stack.Tags) }}
+
+// toastSuccess returns a Basecoat toast fragment that HTMX can append to the toaster.
+func (r *Router) toastSuccess(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprint(w, `<div class="toast" role="status" aria-atomic="true" aria-hidden="false" data-category="success">
+	<div class="toast-content">
+		<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg>
+		<section>
+			<h2>Success</h2>
+			<p>HTMX loaded this toast from the backend.</p>
+		</section>
+		<footer>
+			<button type="button" class="btn" data-toast-action>Dismiss</button>
+		</footer>
+	</div>
+</div>`)
+}
+
+{{- end }}

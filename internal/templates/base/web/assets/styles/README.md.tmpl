@@ -1,0 +1,29 @@
+Add your CSS pipeline entrypoints here. For Tailwind or Bootstrap, point your build
+steps to this location.
+
+### Tailwind standalone workflow
+
+1. Download the Tailwind standalone binary for your platform. For example (macOS arm64):
+
+   ```sh
+   curl -L -o tailwindcss \
+     https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.1/tailwindcss-macos-arm64
+   chmod +x tailwindcss
+   ```
+
+2. Generate CSS from `input.css`:
+
+   ```sh
+   ./tailwindcss -i web/assets/styles/input.css -o public/assets/styles/output.css --watch
+   ```
+
+   Adjust the paths as needed to match your build setup.
+{{if has "Basecoat" .Stack.Tags}}
+
+### Basecoat tweaks
+
+Basecoat's core styles load from the CDN links in `web/templates/pages/index.html`.
+Place any overrides or Tailwind-powered extensions beneath the `@import` line in
+`web/assets/styles/input.css`, then rebuild so they land in
+`public/assets/styles/output.css`.
+{{end}}

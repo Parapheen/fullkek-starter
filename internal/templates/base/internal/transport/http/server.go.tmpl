@@ -1,0 +1,42 @@
+package http
+
+import (
+    "context"
+    "fmt"
+)
+
+// Config controls the HTTP server bootstrap.
+type Config struct {
+    Addr string
+}
+
+// Server exposes a high-level HTTP transport placeholder.
+type Server struct {
+    cfg    Config
+    router *Router
+}
+
+// NewServer constructs a server stub. Extend this to wire real middleware.
+func NewServer(cfg Config) *Server {
+    if cfg.Addr == "" {
+        cfg.Addr = ":3333"
+    }
+
+    return &Server{
+        cfg:    cfg,
+        router: NewRouter(),
+    }
+}
+
+// Listen starts the HTTP transport. Replace the body with a real HTTP server
+// implementation (chi, net/http, etc.).
+func (s *Server) Listen(ctx context.Context) error {
+    fmt.Printf("HTTP server configured on %s (not yet serving).\n", s.cfg.Addr)
+    fmt.Println("TODO: replace Server.Listen with real HTTP server bootstrap.")
+    return nil
+}
+
+// Router exposes the currently configured router stub.
+func (s *Server) Router() *Router {
+    return s.router
+}

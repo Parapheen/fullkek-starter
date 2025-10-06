@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ .AppName }}</title>
+    <script src="https://unpkg.com/fixi@0.10.0/dist/fixi.min.js" defer></script>
+    <script src="/assets/scripts/fixi.js" defer></script>
+    {{- if has "Tailwind" .Stack.Tags }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.3/dist/tailwind.min.css" integrity="sha384-f+pJ1iYZ1sEusA3rZbYf3J3Gww8dGFe2E+LPRgVat725KuqZwqAtbiESMNXo2o5A" crossorigin="anonymous" />
+    {{- end }}
+    {{- if has "Basecoat" .Stack.Tags }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/basecoat.cdn.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/js/all.min.js" defer></script>
+    {{- end }}
+    {{- if has "Tailwind" .Stack.Tags }}
+    <link rel="stylesheet" href="/assets/styles/output.css" />
+    {{- end }}
+  </head>
+  <body class="stack-body" data-fx-controller="page">
+    <main class="stack-container">
+      <header class="stack-section">
+        <p class="stack-eyebrow">Fixi.js</p>
+        <h1 class="stack-title">Welcome to {{ .AppName }}</h1>
+        <p class="stack-body-copy">Fixi.js glues declarative controllers to your HTML. Update <code>public/assets/scripts/fixi.js</code> to register controllers.</p>
+      </header>
+      <section class="stack-section" data-fx-controller="counter">
+        <p class="stack-body-copy">Current count: <span data-fx-target="counter.value">0</span></p>
+        <button class="stack-button" data-fx-action="counter#increment">Increment</button>
+      </section>
+      <footer class="stack-section">
+        <h2 class="stack-subtitle">Selected features</h2>
+        <ul class="stack-list">
+          {{ range .Stack.Features }}
+          <li class="stack-list-item">{{ .Name }}</li>
+          {{ end }}
+        </ul>
+      </footer>
+    </main>
+  </body>
+</html>

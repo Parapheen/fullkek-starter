@@ -1,0 +1,7 @@
+# Build artifacts
+bin/
+dist/
+
+# Generated project directories (safe to remove)
+*.generated
+

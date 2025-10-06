@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ .AppName }}</title>
+    <script src="/assets/scripts/htmx.min.js"></script>
+    {{- if has "Basecoat" .Stack.Tags }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/basecoat.cdn.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/js/all.min.js" defer></script>
+    {{- end }}
+    {{- if has "Tailwind" .Stack.Tags }}
+    <link rel="stylesheet" href="/assets/styles/output.css" />
+    {{- end }}
+  </head>
+  <body class="bg-gray-50 flex flex-col min-h-screen">
+    <main class="flex-grow">
+      <header>
+        <h1 class="text-center">Welcome to {{ .AppName }}</h1>
+        <p>Interact with the server by wiring HTMX routes under internal/transport/http.</p>
+      </header>
+      <section class="container mx-auto">
+        <button class="stack-button" hx-get="/examples" hx-target="#examples" hx-swap="innerHTML">
+          Load Example Interaction
+        </button>
+        <div id="examples" hx-trigger="load">
+          <!-- Render HTMX fragments here -->
+        </div>
+      </section>
+      <footer class="flex flex-col items-center justify-center">
+        <h2>Selected features</h2>
+        <ul>
+          {{ range .Stack.Features }}
+          <li>{{ .Name }}</li>
+          {{ end }}
+        </ul>
+      </footer>
+    </main>
+  </body>
+</html>

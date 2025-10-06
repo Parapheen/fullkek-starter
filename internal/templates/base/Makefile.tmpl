@@ -1,0 +1,122 @@
+.PHONY: help dev build run go test clean {{if has "Tailwind" .Stack.Tags}} tailwind-install tailwind-watch tailwind-build tailwind-ensure{{end}}
+
+APP_URL ?= http://localhost:3333
+
+# Default target
+help:
+	@echo "{{ .AppName }} - Available commands:"
+	@echo ""
+	@echo "  make dev              - Run development server with auto-reload"
+{{- if has "Tailwind" .Stack.Tags }}
+	@echo "  make go               - Start development server with Tailwind watch"
+{{- else }}
+	@echo "  make go               - Start development server"
+{{- end }}
+	@echo "  make build            - Build the application binary"
+	@echo "  make run              - Run the application"
+	@echo "  make test             - Run tests"
+	@echo "  make clean            - Clean build artifacts"{{if has "Tailwind" .Stack.Tags}}
+	@echo "  make tailwind-install - Download standalone Tailwind CSS binary"
+	@echo "  make tailwind-watch   - Watch and rebuild Tailwind CSS on changes"
+	@echo "  make tailwind-build   - Build Tailwind CSS once"{{end}}
+
+# Development server
+dev:
+	@$(MAKE) --no-print-directory >/dev/null 2>&1 || true
+	@echo "Starting development server..."
+	go run ./cmd/server
+
+# Development server with asset pipeline
+go:{{if has "Tailwind" .Stack.Tags}} tailwind-ensure{{end}}
+{{- if has "Tailwind" .Stack.Tags }}
+	@$(MAKE) --no-print-directory >/dev/null 2>&1 || true
+	@echo "Starting Tailwind watcher and Go server..."
+	@mkdir -p public/assets/styles
+	@( \
+		set -e; \
+		$(TAILWIND_BIN) -i ./web/assets/styles/input.css -o ./public/assets/styles/output.css --watch=always & \
+		TAILWIND_PID=$$!; \
+		trap 'kill -0 $$TAILWIND_PID >/dev/null 2>&1 && kill $$TAILWIND_PID' EXIT INT TERM; \
+		echo "Tailwind watcher running (PID $$TAILWIND_PID)."; \
+		echo "Starting Go server..."; \
+		go mod tidy; \
+		go run ./cmd/server \
+	)
+{{- else }}
+	@$(MAKE) --no-print-directory >/dev/null 2>&1 || true
+	@echo "Starting Go server..."
+	go run ./cmd/server
+{{- end }}
+
+# Build the application
+build:
+	@echo "Building {{ .AppName }}..."
+	go build -o bin/{{ .AppName }} ./cmd/server
+
+# Run the application
+run: build
+	@echo "Running {{ .AppName }}..."
+	./bin/{{ .AppName }}
+
+# Run tests
+test:
+	@echo "Running tests..."
+	go test -v ./...
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -rf bin/
+	go clean
+
+{{if has "Tailwind" .Stack.Tags}}
+# Tailwind CSS standalone binary commands
+TAILWIND_VERSION=v4.1.13
+TAILWIND_BIN=./bin/tailwindcss
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+
+ifeq ($(UNAME_S),Darwin)
+	ifeq ($(UNAME_M),arm64)
+		TAILWIND_URL=https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-macos-arm64
+	else
+		TAILWIND_URL=https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-macos-x64
+	endif
+else ifeq ($(UNAME_S),Linux)
+	ifeq ($(UNAME_M),aarch64)
+		TAILWIND_URL=https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-linux-arm64
+	else
+		TAILWIND_URL=https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-linux-x64
+	endif
+else
+	TAILWIND_URL=https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-windows-x64.exe
+	TAILWIND_BIN=./bin/tailwindcss.exe
+endif
+
+# Download Tailwind CSS binary
+tailwind-install:
+	@echo "Downloading Tailwind CSS $(TAILWIND_VERSION) for $(UNAME_S) $(UNAME_M)..."
+	@mkdir -p bin
+	@curl -sL $(TAILWIND_URL) -o $(TAILWIND_BIN)
+	@chmod +x $(TAILWIND_BIN)
+	@echo "Tailwind CSS installed at $(TAILWIND_BIN)"
+
+# Ensure Tailwind CLI is installed
+tailwind-ensure:
+	@if [ ! -f $(TAILWIND_BIN) ]; then \
+		echo "Tailwind CSS binary not found. Installing..."; \
+		$(MAKE) tailwind-install; \
+	fi
+
+# Watch and rebuild CSS
+tailwind-watch: tailwind-ensure
+	@echo "Watching for Tailwind CSS changes..."
+	@mkdir -p public/assets/styles
+	$(TAILWIND_BIN) -i ./web/assets/styles/input.css -o ./public/assets/styles/output.css --watch=always
+
+# Build CSS once
+tailwind-build: tailwind-ensure
+	@echo "Building Tailwind CSS..."
+	@mkdir -p public/assets/styles
+	$(TAILWIND_BIN) -i ./web/assets/styles/input.css -o ./public/assets/styles/output.css --minify
+{{end}}

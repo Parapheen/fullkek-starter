@@ -1,0 +1,112 @@
+# {{ .AppName }}
+
+Generated with **fullkek** using the **{{ .Stack.Name }}** stack.
+
+> This scaffold wires the project for a hypermedia-first workflow. Templates, assets,
+and transport logic are stubbed out so you can focus on implementing the UI layer
+that best fits the stack.
+
+## Stack
+
+- {{ range $index, $tag := .Stack.Tags }}{{ if $index }}, {{ end }}{{ $tag }}{{ end }}
+
+## Getting Started
+
+Install dependencies:
+
+```bash
+go mod tidy
+```
+{{if has "Tailwind" .Stack.Tags}}
+For Tailwind CSS, download the standalone binary:
+
+```bash
+make tailwind-install
+```
+
+Then build your CSS (or watch for changes):
+
+```bash
+make tailwind-build    # Build once
+make tailwind-watch    # Watch and rebuild on changes
+```
+
+Run Tailwind and the Go server together (installs Tailwind if needed):
+
+```bash
+make go
+```
+{{end}}
+Run the development server:
+
+```bash
+make dev
+# or
+go run ./cmd/server
+```
+
+These commands attempt to open `http://localhost:3333` in your default browser. Override `APP_URL`
+when running `make` if you change the listen address, or export `BROWSER=echo` to suppress opening.
+
+The server will start on `http://localhost:3333`
+
+## Available Commands
+
+Run `make help` to see all available commands:
+
+- `make dev` - Run development server with auto-reload
+- `make go` - Start development server and Tailwind watcher (if enabled)
+- `make build` - Build the application binary
+- `make run` - Build and run the application
+- `make test` - Run tests
+- `make clean` - Clean build artifacts{{if has "Tailwind" .Stack.Tags}}
+- `make tailwind-install` - Download standalone Tailwind CSS binary
+- `make tailwind-watch` - Watch and rebuild Tailwind CSS on changes
+- `make tailwind-build` - Build Tailwind CSS once{{end}}
+
+## Project Structure
+
+```
+{{ .AppName }}/
+├── cmd/server/          # Application entry point
+├── internal/
+│   ├── app/            # Application setup and wiring
+│   └── transport/
+│       └── http/       # HTTP server and routing
+├── web/
+│   ├── assets/         # Static assets (CSS, JS)
+│   └── templates/      # HTML templates
+└── bin/                # Build artifacts and tools
+```
+
+## Next Steps
+
+1. Explore the `internal/app` package to understand the application structure
+2. Add routes and handlers in `internal/transport/http/router.go`
+3. Create HTML templates under `web/templates/`
+4. Customize styles in `web/assets/styles/`{{if has "Tailwind" .Stack.Tags}}
+5. Use Tailwind utility classes in your templates
+6. Run `make go` during development to serve the app and rebuild CSS{{end}}
+
+## Notes
+{{if has "Tailwind" .Stack.Tags}}
+### Tailwind CSS
+
+This project uses the standalone Tailwind CSS binary (no npm required!). The binary is downloaded from the [official Tailwind CSS GitHub releases](https://github.com/tailwindlabs/tailwindcss/releases) and placed in the `bin/` directory.
+
+- Input CSS: `web/assets/styles/input.css`
+- Output CSS: `public/assets/styles/output.css`
+- The output CSS is generated from the input and your HTML templates and is served from the `public/` directory
+
+The Makefile automatically detects your OS and architecture and downloads the correct binary.
+{{end}}
+{{if has "Basecoat" .Stack.Tags}}
+### Basecoat Components
+
+Basecoat ships through a CDN link and optional script that are already referenced
+from the generated templates. Update the CDN version in your HTML if you want to
+pin a newer release. Extend component styles via Tailwind in
+`web/assets/styles/input.css`—your changes will compile into
+`public/assets/styles/output.css` while keeping Basecoat defaults.
+{{end}}
+Enjoy building with {{ .AppName }}!
