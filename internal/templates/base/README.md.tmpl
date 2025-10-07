@@ -71,22 +71,35 @@ Run `make help` to see all available commands:
 ├── cmd/server/          # Application entry point
 ├── internal/
 │   ├── app/            # Application setup and wiring
+{{- if .Stack.HasFeature "database-sqlite" }}
+│   ├── infrastructure/
+│   │   └── sqlite/     # SQLite helper wrapping sqlx
+{{- end }}
 │   └── transport/
 │       └── http/       # HTTP server and routing
 ├── web/
 │   ├── assets/         # Static assets (CSS, JS)
 │   └── templates/      # HTML templates
+{{- if .Stack.HasFeature "database-sqlite" }}
+├── var/
+│   └── data/          # Local SQLite storage (gitignored)
+{{- end }}
 └── bin/                # Build artifacts and tools
 ```
 
 ## Next Steps
 
 1. Explore the `internal/app` package to understand the application structure
-2. Add routes and handlers in `internal/transport/http/router.go`
-3. Create HTML templates under `web/templates/`
-4. Customize styles in `web/assets/styles/`{{if has "Tailwind" .Stack.Tags}}
-5. Use Tailwind utility classes in your templates
-6. Run `make go` during development to serve the app and rebuild CSS{{end}}
+1. Add routes and handlers in `internal/transport/http/router.go`
+1. Create HTML templates under `web/templates/`
+1. Customize styles in `web/assets/styles/`
+{{- if .Stack.HasFeature "database-sqlite" }}
+1. Review the helpers in `internal/infrastructure/sqlite/sqlite.go`
+{{- end }}
+{{if has "Tailwind" .Stack.Tags}}
+1. Use Tailwind utility classes in your templates
+1. Run `make go` during development to serve the app and rebuild CSS
+{{end}}
 
 ## Notes
 {{if has "Tailwind" .Stack.Tags}}
@@ -100,6 +113,16 @@ This project uses the standalone Tailwind CSS binary (no npm required!). The bin
 
 The Makefile automatically detects your OS and architecture and downloads the correct binary.
 {{end}}
+{{- if .Stack.HasFeature "database-sqlite" }}
+### SQLite Persistence
+
+The `internal/infrastructure/sqlite` package provides a focused entry point for
+bootstrapping a SQLite database with sqlx. It applies WAL mode, busy timeouts,
+and foreign key enforcement by default, storing data under `var/data/` (ignored
+by git). Override the DSN or connection pool settings via `sqlite.Config` to fit
+your deployment environment. The driver uses CGO, so ensure the relevant SQLite
+toolchain is available when building or cross-compiling.
+{{- end }}
 {{if has "Basecoat" .Stack.Tags}}
 ### Basecoat Components
 

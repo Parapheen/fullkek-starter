@@ -6,6 +6,7 @@ const (
 	CategoryFrontend = "frontend"
 	CategoryStyling  = "styling"
 	CategoryHTTP     = "http"
+	CategoryDatabase = "database"
 )
 
 var categories = []FeatureCategory{
@@ -26,6 +27,12 @@ var categories = []FeatureCategory{
 		Name:        "Web framework",
 		Description: "Choose the HTTP framework powering the transport.",
 		Required:    true,
+	},
+	{
+		ID:            CategoryDatabase,
+		Name:          "Database",
+		Description:   "Select the database adapter for persistence needs.",
+		AllowMultiple: false,
 	},
 }
 
@@ -149,12 +156,37 @@ var featureCatalog = []Feature{
 			},
 		},
 	},
+	{
+		ID:          "database-none",
+		CategoryID:  CategoryDatabase,
+		Name:        "None",
+		Description: "Skip bundling a database integration.",
+		Tags:        []string{"database"},
+	},
+	{
+		ID:          "database-sqlite",
+		CategoryID:  CategoryDatabase,
+		Name:        "SQLite",
+		Description: "Preconfigured SQLite helper powered by sqlx.",
+		Tags:        []string{"database", "SQLite", "sqlx"},
+		Directories: []string{
+			"internal/infrastructure/sqlite",
+			"var/data",
+		},
+		Templates: []Template{
+			{
+				Source:      "features/database/sqlite/internal/infrastructure/sqlite/sqlite.go.tmpl",
+				Destination: "internal/infrastructure/sqlite/sqlite.go",
+			},
+		},
+	},
 }
 
 var defaultSelection = Selection{
 	CategoryFrontend: {"frontend-htmx"},
 	CategoryStyling:  {"styling-tailwind"},
 	CategoryHTTP:     {"http-standard"},
+	CategoryDatabase: {"database-none"},
 }
 
 // Categories returns a copy of the registered feature categories ordered for display.

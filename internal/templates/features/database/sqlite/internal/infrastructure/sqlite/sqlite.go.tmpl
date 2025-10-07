@@ -1,0 +1,121 @@
+package sqlite
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+const defaultRelativePath = "data/app.db"
+
+// Config collects the SQLite configuration knobs exposed by the scaffolding helper.
+type Config struct {
+	// DSN allows overriding the fully-qualified SQLite DSN, including pragmas.
+	DSN string
+
+	// MaxOpenConns caps the number of SQLite connections; defaults to 1.
+	MaxOpenConns int
+	// MaxIdleConns sets the idle connection pool size; defaults to 1.
+	MaxIdleConns int
+	// ConnMaxLifetime optionally bounds how long a connection may be reused.
+	ConnMaxLifetime time.Duration
+	// ConnMaxIdleTime optionally bounds how long a connection may sit idle.
+	ConnMaxIdleTime time.Duration
+	// PingTimeout controls how long to wait for the initial connectivity check.
+	PingTimeout time.Duration
+}
+
+// Init opens a SQLite database using sqlx with sensible defaults applied.
+func Init(ctx context.Context, cfg Config) (*sqlx.DB, error) {
+	if ctx == nil {
+		return nil, errors.New("context is required")
+	}
+
+	dsn := strings.TrimSpace(cfg.DSN)
+	if dsn == "" {
+		dsn = defaultDSN()
+	}
+
+	if err := ensureDirectory(dsn); err != nil {
+		return nil, fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+
+	db, err := sqlx.Open("sqlite3", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open sqlite connection: %w", err)
+	}
+
+	if cfg.MaxOpenConns > 0 {
+		db.SetMaxOpenConns(cfg.MaxOpenConns)
+	} else {
+		db.SetMaxOpenConns(1)
+	}
+
+	if cfg.MaxIdleConns > 0 {
+		db.SetMaxIdleConns(cfg.MaxIdleConns)
+	} else {
+		db.SetMaxIdleConns(1)
+	}
+
+	if cfg.ConnMaxLifetime > 0 {
+		db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	}
+	if cfg.ConnMaxIdleTime > 0 {
+		db.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
+	}
+
+	pingTimeout := cfg.PingTimeout
+	if pingTimeout <= 0 {
+		pingTimeout = 5 * time.Second
+	}
+
+	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	if err := db.PingContext(pingCtx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ping sqlite database: %w", err)
+	}
+
+	return db, nil
+}
+
+func defaultDSN() string {
+	path := filepath.ToSlash(defaultRelativePath)
+	return fmt.Sprintf("file:%s?cache=shared&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)", path)
+}
+
+func ensureDirectory(dsn string) error {
+	const filePrefix = "file:"
+	if !strings.HasPrefix(dsn, filePrefix) {
+		return nil
+	}
+
+	path := strings.TrimPrefix(dsn, filePrefix)
+	if idx := strings.IndexByte(path, '?'); idx >= 0 {
+		path = path[:idx]
+	}
+
+	if path == "" || path == ":memory:" {
+		return nil
+	}
+
+	fsPath := filepath.FromSlash(path)
+	dir := filepath.Dir(fsPath)
+	if dir == "." || dir == "" {
+		return nil
+	}
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -22,6 +22,11 @@ go.work
 web/assets/styles/output.css
 {{end}}
 
+{{- if .Stack.HasFeature "database-sqlite" }}
+# Local SQLite database files
+var/data/
+{{- end }}
+
 # IDE
 .vscode/
 .idea/

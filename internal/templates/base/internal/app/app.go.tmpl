@@ -4,12 +4,21 @@ import (
     "context"
     "fmt"
 
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    "github.com/jmoiron/sqlx"
+    {{- end }}
     httptransport "{{ .ModulePath }}/internal/transport/http"
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    sqliteinfra "{{ .ModulePath }}/internal/infrastructure/sqlite"
+    {{- end }}
 )
 
 // App wires together the transports for your application.
 type App struct {
     server *httptransport.Server
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    db     *sqlx.DB
+    {{- end }}
 }
 
 // New constructs an App ready to run.
@@ -18,12 +27,36 @@ func New(ctx context.Context) (*App, error) {
         Addr: ":3333",
     })
 
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    db, err := sqliteinfra.Init(ctx, sqliteinfra.Config{})
+    if err != nil {
+        return nil, err
+    }
+
+    fmt.Println("Connected to SQLite database")
+
+    return &App{server: srv, db: db}, nil
+    {{- else }}
     return &App{server: srv}, nil
+    {{- end }}
 }
 
 // Run starts the HTTP server.
 func (a *App) Run(ctx context.Context) error {
     fmt.Println("Starting {{ .AppName }}...")
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    defer a.closeDatabase()
+    {{- end }}
     return a.server.Listen(ctx)
 }
 
+{{- if .Stack.HasFeature "database-sqlite" }}
+func (a *App) closeDatabase() {
+    if a.db == nil {
+        return
+    }
+    if err := a.db.Close(); err != nil {
+        fmt.Printf("error closing SQLite connection: %v\n", err)
+    }
+}
+{{- end }}

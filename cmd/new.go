@@ -27,11 +27,13 @@ func newNewCommand() *cobra.Command {
 		frontend   string
 		styling    string
 		http       string
+		database   string
 	}
 
 	frontendDefault := first(defaults[stacks.CategoryFrontend])
 	stylingDefault := first(defaults[stacks.CategoryStyling])
 	httpDefault := first(defaults[stacks.CategoryHTTP])
+	databaseDefault := first(defaults[stacks.CategoryDatabase])
 
 	cmd := &cobra.Command{
 		Use:   "new [app-name]",
@@ -49,6 +51,7 @@ func newNewCommand() *cobra.Command {
 					stacks.CategoryFrontend: opts.frontend,
 					stacks.CategoryStyling:  opts.styling,
 					stacks.CategoryHTTP:     opts.http,
+					stacks.CategoryDatabase: opts.database,
 				}),
 			)
 
@@ -93,26 +96,26 @@ func newNewCommand() *cobra.Command {
 				if appName == "" {
 					return errors.New("app name required when not using interactive mode")
 				}
-			modulePath = deriveModulePath(appName, opts.modulePath)
-			destination = opts.outputDir
-		}
+				modulePath = deriveModulePath(appName, opts.modulePath)
+				destination = opts.outputDir
+			}
 
-		appName = strings.TrimSpace(appName)
-		modulePath = strings.TrimSpace(modulePath)
-		destination = strings.TrimSpace(destination)
+			appName = strings.TrimSpace(appName)
+			modulePath = strings.TrimSpace(modulePath)
+			destination = strings.TrimSpace(destination)
 
-		if appName == "" {
-			return errors.New("app name cannot be empty")
-		}
-		if modulePath == "" {
-			modulePath = deriveModulePath(appName, modulePath)
-		}
-	destination = deriveOutputDir(appName, destination)
+			if appName == "" {
+				return errors.New("app name cannot be empty")
+			}
+			if modulePath == "" {
+				modulePath = deriveModulePath(appName, modulePath)
+			}
+			destination = deriveOutputDir(appName, destination)
 
-		stack, err := stacks.Compose(selection)
-		if err != nil {
-			return err
-		}
+			stack, err := stacks.Compose(selection)
+			if err != nil {
+				return err
+			}
 
 			generator := scaffold.DefaultGenerator()
 			ctx := context.Background()
@@ -150,6 +153,7 @@ func newNewCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.frontend, "frontend", frontendDefault, "frontend runtime feature identifier")
 	cmd.Flags().StringVar(&opts.styling, "styling", stylingDefault, "styling feature identifier")
 	cmd.Flags().StringVar(&opts.http, "http", httpDefault, "HTTP framework feature identifier")
+	cmd.Flags().StringVar(&opts.database, "database", databaseDefault, "database feature identifier")
 
 	return cmd
 }

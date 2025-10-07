@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -58,6 +60,11 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 	modulePath := strings.TrimSpace(opts.ModulePath)
 	outputDir := strings.TrimSpace(opts.OutputDir)
 	force := opts.Force
+
+	workingDir, err := os.Getwd()
+	if err != nil {
+		workingDir = ""
+	}
 
 	if outputDir == "" {
 		outputDir = suggestOutputDir(appName)
@@ -139,7 +146,19 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 	groups = append(groups, huh.NewGroup(
 		huh.NewConfirm().
 			Title("Overwrite destination if it already exists?").
-			Description("Press enter to toggle.").
+			DescriptionFunc(func() string {
+				destination := scaffoldDestinationPath(workingDir, appName, outputDir)
+				if destination == "" {
+					return "Press enter to toggle."
+				}
+				return fmt.Sprintf("The project will be scaffolded at %s.\nPress enter to toggle.", destination)
+			}, struct {
+				AppName   *string
+				OutputDir *string
+			}{
+				AppName:   &appName,
+				OutputDir: &outputDir,
+			}).
 			Affirmative("Yes").
 			Negative("No").
 			Value(&force),
@@ -155,22 +174,41 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 
 			trimmedApp := strings.TrimSpace(appName)
 			trimmedModule := strings.TrimSpace(modulePath)
+			destination := scaffoldDestinationPath(workingDir, appName, outputDir)
+			if destination == "" {
+				destination = "(not set)"
+			}
 
-			writeLine("App name      : %s", trimmedApp)
-			writeLine("Module path   : %s", trimmedModule)
+			writeLine("┌ Project Details")
+			writeLine("│ App name    : %s", valueOrPlaceholder(trimmedApp))
+			writeLine("│ Module path : %s", valueOrPlaceholder(trimmedModule))
+			writeLine("│ Destination : %s", destination)
+			writeLine("│ Overwrite   : %s", humanizeBool(force))
+			writeLine("└")
+
 			if len(bindings) > 0 {
-				b.WriteString("\nFeatures:\n")
+				b.WriteString("\nSelected features:\n")
 				for _, binding := range bindings {
 					featureName := binding.selectedFeatureName()
 					if featureName != "" && featureName != "<none>" {
-						writeLine("  • %s: %s", binding.category.Name, featureName)
+						writeLine("  • %s → %s", binding.category.Name, featureName)
 					}
 				}
 			}
-			writeLine("\nForce overwrite: %t", force)
+
 			b.WriteString("\n✨ Press Enter to scaffold or use ← to adjust previous answers.")
 			return b.String()
-		}, nil).
+		}, struct {
+			AppName    *string
+			ModulePath *string
+			OutputDir  *string
+			Force      *bool
+		}{
+			AppName:    &appName,
+			ModulePath: &modulePath,
+			OutputDir:  &outputDir,
+			Force:      &force,
+		}).
 		Next(true).
 		NextLabel("🚀 Scaffold project")
 
@@ -223,14 +261,7 @@ func (b *featureBinding) selectedFeatureName() string {
 }
 
 func suggestOutputDir(appName string) string {
-	sanitized := strings.TrimSpace(appName)
-	if sanitized == "" {
-		return ""
-	}
-	sanitized = strings.ReplaceAll(sanitized, " ", "-")
-	sanitized = strings.ToLower(sanitized)
-	sanitized = strings.Trim(sanitized, "-")
-	return sanitized
+	return resolveOutputDir(appName, "")
 }
 
 func first(values []string) string {
@@ -238,4 +269,46 @@ func first(values []string) string {
 		return ""
 	}
 	return values[0]
+}
+
+func scaffoldDestinationPath(baseDir, appName, outputDir string) string {
+	destination := resolveOutputDir(appName, outputDir)
+	destination = strings.TrimSpace(destination)
+	if destination == "" {
+		return ""
+	}
+	if baseDir != "" && !filepath.IsAbs(destination) {
+		destination = filepath.Join(baseDir, destination)
+	}
+	return filepath.Clean(destination)
+}
+
+func resolveOutputDir(appName, override string) string {
+	override = strings.TrimSpace(override)
+	if override != "" {
+		return override
+	}
+	sanitized := strings.TrimSpace(appName)
+	sanitized = strings.ReplaceAll(sanitized, " ", "-")
+	sanitized = strings.ToLower(sanitized)
+	sanitized = strings.Trim(sanitized, "-")
+	if sanitized == "" {
+		return strings.TrimSpace(appName)
+	}
+	return sanitized
+}
+
+func valueOrPlaceholder(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "(not set)"
+	}
+	return value
+}
+
+func humanizeBool(value bool) string {
+	if value {
+		return "Yes"
+	}
+	return "No"
 }

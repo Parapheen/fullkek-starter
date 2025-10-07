@@ -89,10 +89,9 @@
         <article class="card w-full space-y-4">
           <header>
             <h2>Toast showcase</h2>
-            <p>Trigger Basecoat toasts from the front end or via HTMX fragments.</p>
+            <p>Trigger Basecoat toasts via HTMX fragments.</p>
           </header>
           <section class="space-y-3">
-            <button class="btn" type="button" data-toast="Changes saved successfully!">Toast from front-end</button>
             {{- if .Stack.HasFeature "frontend-htmx" }}
             <button
               class="btn-outline"
