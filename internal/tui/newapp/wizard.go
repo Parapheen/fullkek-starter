@@ -155,11 +155,9 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 
 			trimmedApp := strings.TrimSpace(appName)
 			trimmedModule := strings.TrimSpace(modulePath)
-			trimmedOutput := strings.TrimSpace(outputDir)
 
 			writeLine("App name      : %s", trimmedApp)
 			writeLine("Module path   : %s", trimmedModule)
-			writeLine("Destination   : %s", trimmedOutput)
 			if len(bindings) > 0 {
 				b.WriteString("\nFeatures:\n")
 				for _, binding := range bindings {
