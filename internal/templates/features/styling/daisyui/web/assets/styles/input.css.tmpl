@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/* Exclude the local CLI and plugin bundles from Tailwind's content graph */
+@source not "./tailwindcss";
+@source not "./daisyui{,*}.mjs";
+
+/* DaisyUI plugin registers components and themes */
+@plugin "./daisyui.mjs";
+
+/*
+ * Tailwind CLI writes to public/assets/styles/output.css.
+ * Drop project-specific layer overrides beneath these lines.
+ */

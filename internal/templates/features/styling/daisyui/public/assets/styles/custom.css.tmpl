@@ -1,0 +1,24 @@
+/*
+ * DaisyUI fast install drops the Tailwind CLI binary and daisyUI plugin in
+ * web/assets/styles. The watcher writes compiled utilities to
+ * public/assets/styles/output.css.
+ *
+ * Layer project overrides or design tokens here—this file ships after the
+ * generated bundle so your tweaks win without touching the compiled CSS.
+ */
+
+:root {
+  /* Example token you can reuse with Tailwind's arbitrary values */
+  --brand-radius: 1.25rem;
+}
+
+.btn-brand {
+  border-radius: var(--brand-radius);
+  background-image: linear-gradient(135deg, #570df8 0%, #1fb2a6 100%);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-brand:hover {
+  filter: brightness(0.95);
+}

@@ -123,6 +123,34 @@ var featureCatalog = []Feature{
 		},
 	},
 	{
+		ID:          "styling-daisyui",
+		CategoryID:  CategoryStyling,
+		Name:        "DaisyUI standalone",
+		Description: "Tailwind standalone CLI plus DaisyUI fast script generated bundle.",
+		Tags:        []string{"DaisyUI"},
+		Directories: []string{
+			"public/assets/styles",
+		},
+		Templates: []Template{
+			{
+				Source:      "features/styling/daisyui/public/assets/styles/custom.css.tmpl",
+				Destination: "public/assets/styles/custom.css",
+			},
+			{
+				Source:      "features/styling/daisyui/public/assets/styles/output.css.tmpl",
+				Destination: "public/assets/styles/output.css",
+			},
+			{
+				Source:      "features/styling/daisyui/web/assets/styles/input.css.tmpl",
+				Destination: "web/assets/styles/input.css",
+			},
+			{
+				Source:      "features/styling/daisyui/web/templates/pages/index.html.tmpl",
+				Destination: "web/templates/pages/index.html",
+			},
+		},
+	},
+	{
 		ID:          "http-standard",
 		CategoryID:  CategoryHTTP,
 		Name:        "net/http",

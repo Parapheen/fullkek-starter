@@ -21,6 +21,13 @@ go.work
 # Tailwind CSS generated output (if not committed)
 web/assets/styles/output.css
 {{end}}
+{{if has "DaisyUI" .Stack.Tags}}
+# DaisyUI fast installer marker
+.daisyui-fast
+web/assets/styles/tailwindcss*
+web/assets/styles/daisyui*.mjs
+web/assets/styles/output.css
+{{end}}
 
 {{- if .Stack.HasFeature "database-sqlite" }}
 # Local SQLite database files

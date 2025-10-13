@@ -27,3 +27,14 @@ Place any overrides or Tailwind-powered extensions beneath the `@import` line in
 `web/assets/styles/input.css`, then rebuild so they land in
 `public/assets/styles/output.css`.
 {{end}}
+{{if has "DaisyUI" .Stack.Tags}}
+
+### DaisyUI standalone
+
+DaisyUI compiles through the Tailwind CLI installed by the fast script. Drop any
+project-specific rules into `public/assets/styles/custom.css`—it's linked after
+the generated bundle so your overrides take precedence.
+
+The `make go` target runs `curl -sL daisyui.com/fast | bash -s -- ./web/assets/styles` the first time you
+boot the dev server, matching the standalone quick-start instructions.
+{{end}}

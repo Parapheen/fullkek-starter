@@ -132,4 +132,16 @@ pin a newer release. Extend component styles via Tailwind in
 `web/assets/styles/input.css`—your changes will compile into
 `public/assets/styles/output.css` while keeping Basecoat defaults.
 {{end}}
+{{if has "DaisyUI" .Stack.Tags}}
+### DaisyUI Standalone
+
+The DaisyUI fast installer drops the Tailwind standalone CLI and daisyUI plugin
+under `web/assets/styles`. The generated page links to
+`/assets/styles/output.css`, which Tailwind compiles during development.
+
+Run `make go` to start the watcher and Go server. The first run executes
+`curl -sL daisyui.com/fast | bash -s -- ./web/assets/styles`, creates
+`public/assets/styles/output.css`, and caches the result behind the
+`.daisyui-fast` marker. Remove that file to rerun the installer.
+{{end}}
 Enjoy building with {{ .AppName }}!

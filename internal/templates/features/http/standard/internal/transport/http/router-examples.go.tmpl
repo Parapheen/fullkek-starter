@@ -196,11 +196,12 @@ func (r *Router) apiTodos(w http.ResponseWriter, req *http.Request) {
 
 {{- end }}
 
-{{- if and (.Stack.HasFeature "frontend-htmx") (has "Basecoat" .Stack.Tags) }}
+{{- if and (.Stack.HasFeature "frontend-htmx") (or (has "Basecoat" .Stack.Tags) (has "DaisyUI" .Stack.Tags)) }}
 
-// toastSuccess returns a Basecoat toast fragment that HTMX can append to the toaster.
+// toastSuccess returns a toast fragment that HTMX can append to the toaster.
 func (r *Router) toastSuccess(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+{{- if has "Basecoat" .Stack.Tags }}
 	fmt.Fprint(w, `<div class="toast" role="status" aria-atomic="true" aria-hidden="false" data-category="success">
 	<div class="toast-content">
 		<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg>
@@ -213,6 +214,12 @@ func (r *Router) toastSuccess(w http.ResponseWriter, req *http.Request) {
 		</footer>
 	</div>
 </div>`)
+{{- else if has "DaisyUI" .Stack.Tags }}
+	fmt.Fprint(w, `<div class="alert alert-success shadow-lg transition-opacity duration-200">
+	<span>HTMX loaded this toast from the backend.</span>
+	<button type="button" class="btn btn-sm btn-ghost" data-daisy-toast-dismiss>Dismiss</button>
+</div>`)
+{{- end }}
 }
 
 {{- end }}

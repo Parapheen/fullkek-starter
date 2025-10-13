@@ -7,8 +7,11 @@ help:
 	@echo "{{ .AppName }} - Available commands:"
 	@echo ""
 	@echo "  make dev              - Run development server with auto-reload"
+
 {{- if has "Tailwind" .Stack.Tags }}
 	@echo "  make go               - Start development server with Tailwind watch"
+{{- else if has "DaisyUI" .Stack.Tags }}
+	@echo "  make go               - Run DaisyUI fast setup then start development server"
 {{- else }}
 	@echo "  make go               - Start development server"
 {{- end }}
@@ -41,6 +44,30 @@ go:{{if has "Tailwind" .Stack.Tags}} tailwind-ensure{{end}}
 		echo "Starting Go server..."; \
 		go mod tidy; \
 		go run ./cmd/server \
+	)
+{{- else if has "DaisyUI" .Stack.Tags }}
+	@$(MAKE) --no-print-directory >/dev/null 2>&1 || true
+	@echo "Starting DaisyUI Tailwind watcher and Go server..."
+	@mkdir -p public/assets/styles web/assets/styles
+	@( \
+		set -e; \
+		if [ ! -f .daisyui-fast ] || [ ! -f ./web/assets/styles/tailwindcss ]; then \
+			echo "Running DaisyUI fast installer (curl -sL daisyui.com/fast | bash -s -- ./web/assets/styles)..."; \
+			curl -sL daisyui.com/fast | bash -s -- ./web/assets/styles; \
+			touch .daisyui-fast; \
+		else \
+			echo "DaisyUI assets already installed (remove .daisyui-fast to rerun)."; \
+		fi; \
+		if [ -f ./web/assets/styles/output.css ]; then \
+			mv ./web/assets/styles/output.css ./public/assets/styles/output.css; \
+		fi; \
+		./web/assets/styles/tailwindcss -i ./web/assets/styles/input.css -o ./public/assets/styles/output.css --watch=always & \
+		TAILWIND_PID=$$!; \
+		trap 'kill -0 $$TAILWIND_PID >/dev/null 2>&1 && kill $$TAILWIND_PID' EXIT INT TERM; \
+		echo "DaisyUI Tailwind watcher running (PID $$TAILWIND_PID)."; \
+		echo "Starting Go server..."; \
+		go mod tidy; \
+		go run ./cmd/server; \
 	)
 {{- else }}
 	@$(MAKE) --no-print-directory >/dev/null 2>&1 || true

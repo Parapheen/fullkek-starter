@@ -79,6 +79,7 @@ If `--no-ui` is used and `[app-name]` is omitted, the command will error. Withou
 - Styling system:
 
   - `styling-tailwind`: Tailwind CLI setup with `input.css` and config
+  - `styling-daisyui`: DaisyUI standalone bundle delivered over CDN, no build step
   - `styling-tailwind-basecoat`: Tailwind CLI plus Basecoat component library via CDN
 
 - Web framework:
