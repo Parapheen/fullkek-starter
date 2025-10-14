@@ -15,6 +15,9 @@ bin/
 # Go workspace file
 go.work
 
+# Environment
+.env
+
 # Build artifacts
 {{ .AppName }}
 {{if has "Tailwind" .Stack.Tags}}
@@ -32,7 +35,12 @@ web/assets/styles/output.css
 {{- if .Stack.HasFeature "database-sqlite" }}
 # Local SQLite database files
 var/data/
+data/
 {{- end }}
+
+# Goose binary and temp files
+bin/goose
+db/migrations/*.tmp
 
 # IDE
 .vscode/

@@ -50,6 +50,24 @@ when running `make` if you change the listen address, or export `BROWSER=echo` t
 
 The server will start on `http://localhost:3333`
 
+### Environment (.env)
+
+Copy `.env.example` to `.env` and adjust values as needed. The app automatically loads `.env` on startup.
+
+- `SERVER_ADDR` – listen address (default `:3333`)
+{{- if .Stack.HasFeature "database-sqlite" }}
+- `SQLITE_DSN` – SQLite DSN (empty uses built-in default)
+{{- end }}
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
+- `GITHUB_CLIENT_ID` – GitHub OAuth client ID
+- `GITHUB_CLIENT_SECRET` – GitHub OAuth client secret
+- `OAUTH_CALLBACK_BASE` – base URL used to build provider callbacks
+{{- if .Stack.HasFeature "database-sqlite" }}
+- `SESSION_COOKIE_NAME` – session cookie name (default `sid`)
+- `SESSION_TTL_DAYS` – session lifetime in days (default `30`)
+{{- end }}
+{{- end }}
+
 ## Available Commands
 
 Run `make help` to see all available commands:
@@ -63,6 +81,38 @@ Run `make help` to see all available commands:
 - `make tailwind-install` - Download standalone Tailwind CSS binary
 - `make tailwind-watch` - Watch and rebuild Tailwind CSS on changes
 - `make tailwind-build` - Build Tailwind CSS once{{end}}
+
+{{- if .Stack.HasFeature "database-sqlite" }}
+### Database Migrations (goose)
+
+Install goose locally and manage migrations:
+
+```bash
+make goose-install
+make migrate-create name=create_users
+make migrate-up
+make migrate-status
+```
+
+Environment for SQLite DSN and migrations directory can be overridden via `DB_DSN` and `MIGRATIONS_DIR`.
+{{- end }}
+
+### OAuth (if enabled)
+
+Set the following environment variables to activate GitHub OAuth:
+
+```bash
+export GITHUB_CLIENT_ID=...
+export GITHUB_CLIENT_SECRET=...
+export OAUTH_CALLBACK_BASE="http://localhost:3333"
+```
+
+Routes available:
+
+- `/auth/{provider}` – start login for the selected provider
+- `/auth/{provider}/callback` – provider callback endpoint
+- `/profile` – protected page showing user info
+- `/logout` – clear session
 
 ## Project Structure
 
@@ -118,7 +168,7 @@ The Makefile automatically detects your OS and architecture and downloads the co
 
 The `internal/infrastructure/sqlite` package provides a focused entry point for
 bootstrapping a SQLite database with sqlx. It applies WAL mode, busy timeouts,
-and foreign key enforcement by default, storing data under `var/data/` (ignored
+and foreign key enforcement by default, storing data under `data/` (ignored
 by git). Override the DSN or connection pool settings via `sqlite.Config` to fit
 your deployment environment. The driver uses CGO, so ensure the relevant SQLite
 toolchain is available when building or cross-compiling.

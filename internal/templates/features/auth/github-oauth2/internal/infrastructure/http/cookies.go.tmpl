@@ -1,0 +1,54 @@
+package httpinfra
+
+import (
+    "net/http"
+    "os"
+    "strconv"
+    "time"
+)
+
+func SessionCookieName() string {
+    if v := os.Getenv("SESSION_COOKIE_NAME"); v != "" { return v }
+    return "sid"
+}
+
+func SessionTTL() time.Duration {
+    if v := os.Getenv("SESSION_TTL_DAYS"); v != "" {
+        if days, err := strconv.Atoi(v); err == nil && days > 0 {
+            return time.Duration(days) * 24 * time.Hour
+        }
+    }
+    return 30 * 24 * time.Hour
+}
+
+func SetCookie(w http.ResponseWriter, name, value string, expires time.Time) {
+    http.SetCookie(w, &http.Cookie{
+        Name:     name,
+        Value:    value,
+        Path:     "/",
+        HttpOnly: true,
+        SameSite: http.SameSiteLaxMode,
+        Expires:  expires,
+        Secure:   false,
+    })
+}
+
+func ClearCookie(w http.ResponseWriter, name string) {
+    http.SetCookie(w, &http.Cookie{
+        Name:     name,
+        Value:    "",
+        Path:     "/",
+        HttpOnly: true,
+        SameSite: http.SameSiteLaxMode,
+        Expires:  time.Unix(0, 0),
+        MaxAge:   -1,
+    })
+}
+
+func ReadCookie(req *http.Request, name string) string {
+    c, err := req.Cookie(name)
+    if err != nil { return "" }
+    return c.Value
+}
+
+

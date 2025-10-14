@@ -1,0 +1,81 @@
+package auth
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "net/http"
+
+    appauth "{{ .ModulePath }}/internal/application/auth"
+    "golang.org/x/oauth2"
+    githuboauth "golang.org/x/oauth2/github"
+)
+
+type GithubProvider struct {
+    cfg    *oauth2.Config
+    client *http.Client
+}
+
+func NewGithubProvider(clientID, clientSecret, redirectURL string, client *http.Client) *GithubProvider {
+    if client == nil { client = http.DefaultClient }
+    return &GithubProvider{
+        cfg: &oauth2.Config{
+            ClientID:     clientID,
+            ClientSecret: clientSecret,
+            RedirectURL:  redirectURL,
+            Scopes:       []string{"user:email"},
+            Endpoint:     githuboauth.Endpoint,
+        },
+        client: client,
+    }
+}
+
+func (p *GithubProvider) ID() string {
+    return "github"
+}
+
+func (p *GithubProvider) AuthCodeURL(state string) string {
+    return p.cfg.AuthCodeURL(state, oauth2.AccessTypeOnline)
+}
+
+func (p *GithubProvider) Exchange(ctx context.Context, code string) (string, error) {
+    tok, err := p.cfg.Exchange(ctx, code)
+    if err != nil { return "", err }
+    return tok.AccessToken, nil
+}
+
+func (p *GithubProvider) FetchProfile(ctx context.Context, accessToken string) (appauth.OAuthProfile, error) {
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
+    if err != nil { return appauth.OAuthProfile{}, err }
+    req.Header.Set("Authorization", "Bearer "+accessToken)
+    resp, err := p.client.Do(req)
+    if err != nil { return appauth.OAuthProfile{}, err }
+    defer resp.Body.Close()
+    if resp.StatusCode != http.StatusOK {
+        return appauth.OAuthProfile{}, fmt.Errorf("github user: status %d", resp.StatusCode)
+    }
+    var payload struct {
+        ID        int64  `json:"id"`
+        Login     string `json:"login"`
+        Name      string `json:"name"`
+        Email     string `json:"email"`
+        AvatarURL string `json:"avatar_url"`
+    }
+    if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil { return appauth.OAuthProfile{}, err }
+    gid := fmt.Sprintf("%d", payload.ID)
+    return appauth.OAuthProfile{
+        Provider:  p.ID(),
+        Subject:   gid,
+        Name:      coalesce(payload.Name, payload.Login),
+        Email:     payload.Email,
+        AvatarURL: payload.AvatarURL,
+    }, nil
+}
+
+func coalesce(values ...string) string {
+    for _, v := range values {
+        if v != "" { return v }
+    }
+    return ""
+}
+

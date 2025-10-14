@@ -7,6 +7,11 @@ import (
 {{- if .Stack.HasFeature "frontend-htmx" }}
     "sync/atomic"
 {{- end }}
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    "strings"
+
+    appauth "{{ .ModulePath }}/internal/application/auth"
+    {{- end }}
 )
 
 var indexPage = filepath.Join("web", "templates", "pages", "index.html")
@@ -14,6 +19,10 @@ var indexPage = filepath.Join("web", "templates", "pages", "index.html")
 type Router struct {
 {{- if .Stack.HasFeature "frontend-htmx" }}
     exampleCounter atomic.Int64
+{{- end }}
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
+    authService *appauth.Service
+    authDefaultProvider string
 {{- end }}
 }
 
@@ -27,6 +36,19 @@ func (r *Router) Register(mux *http.ServeMux) {
     mux.HandleFunc("/", r.home)
     mux.HandleFunc("/healthz", r.health)
 
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    // Auth routes
+    mux.HandleFunc("/auth/", func(w http.ResponseWriter, req *http.Request) {
+        if strings.HasSuffix(req.URL.Path, "/callback") {
+            r.authCallback(w, req)
+            return
+        }
+        r.authStart(w, req)
+    })
+    mux.HandleFunc("/logout", r.logout)
+    mux.HandleFunc("/profile", r.profile)
+    {{- end }}
+
 {{- if or (.Stack.HasFeature "frontend-htmx") (.Stack.HasFeature "frontend-fixi") }}
     // Demo API routes backing the generated UI examples. Remove them once replaced.
     mux.HandleFunc("/api/counter", r.apiCounter)
@@ -37,6 +59,18 @@ func (r *Router) Register(mux *http.ServeMux) {
     {{- end }}
 {{- end }}
 }
+
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
+
+// SetAuthService injects the authentication service into the router.
+func (r *Router) SetAuthService(svc *appauth.Service) {
+    r.authService = svc
+    if svc != nil {
+        r.authDefaultProvider = svc.PrimaryProvider()
+    }
+}
+
+{{- end }}
 
 func (r *Router) home(w http.ResponseWriter, req *http.Request) {
     http.ServeFile(w, req, indexPage)

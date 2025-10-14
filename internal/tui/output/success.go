@@ -12,11 +12,11 @@ import (
 
 var (
 	// Color palette
-	primaryColor   = lipgloss.Color("#00D9FF")
-	successColor   = lipgloss.Color("#00FF87")
-	accentColor    = lipgloss.Color("#FF00FF")
-	mutedColor     = lipgloss.Color("#808080")
-	warningColor   = lipgloss.Color("#FFD700")
+	primaryColor    = lipgloss.Color("#00D9FF")
+	successColor    = lipgloss.Color("#00FF87")
+	accentColor     = lipgloss.Color("#FF00FF")
+	mutedColor      = lipgloss.Color("#808080")
+	warningColor    = lipgloss.Color("#FFD700")
 	backgroundColor = lipgloss.Color("#1a1a1a")
 
 	// Styles
@@ -55,7 +55,6 @@ var (
 			MarginTop(1).
 			MarginBottom(1)
 )
-
 
 const coolMeme = `
   ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
@@ -107,7 +106,7 @@ func PrintSuccess(out io.Writer, destination string, stack stacks.Stack) {
 	steps.WriteString(infoStyle.Render("🚀 Next steps:") + "\n\n")
 	steps.WriteString(fmt.Sprintf("   %s %s\n", stepStyle.Render("1."), valueStyle.Render(fmt.Sprintf("cd %s", destination))))
 	steps.WriteString(fmt.Sprintf("   %s %s\n", stepStyle.Render("2."), valueStyle.Render("make go")))
-	
+
 	mutedStyle := lipgloss.NewStyle().Foreground(mutedColor)
 	steps.WriteString(fmt.Sprintf("\n   %s %s\n", labelStyle.Render("📖"), mutedStyle.Render(fmt.Sprintf("Review %s/README.md for detailed guidance.", destination))))
 

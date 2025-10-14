@@ -6,6 +6,7 @@ import "github.com/Parapheen/fullkek-starter/internal/stacks"
 var BaseDirectories = []string{
 	"cmd/server",
 	"internal/app",
+	"internal/pkg/env",
 	"internal/transport/http",
 	"web/templates/pages",
 	"web/assets/styles",
@@ -36,6 +37,11 @@ var BaseTemplates = []stacks.Template{
 		Mode:        0o644,
 	},
 	{
+		Source:      "base/env.example.tmpl",
+		Destination: ".env.example",
+		Mode:        0o644,
+	},
+	{
 		Source:      "base/cmd/server/main.go.tmpl",
 		Destination: "cmd/server/main.go",
 		Mode:        0o644,
@@ -43,6 +49,11 @@ var BaseTemplates = []stacks.Template{
 	{
 		Source:      "base/internal/app/app.go.tmpl",
 		Destination: "internal/app/app.go",
+		Mode:        0o644,
+	},
+	{
+		Source:      "base/internal/pkg/env/env.go.tmpl",
+		Destination: "internal/pkg/env/env.go",
 		Mode:        0o644,
 	},
 	{

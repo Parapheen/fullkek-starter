@@ -1,0 +1,101 @@
+package persistence
+
+import (
+    "context"
+    "database/sql"
+    "errors"
+    "time"
+
+    "github.com/jmoiron/sqlx"
+    domainSession "{{ .ModulePath }}/internal/domain/session"
+)
+
+type SQLiteSessionRepository struct { db *sqlx.DB }
+
+func NewSQLiteSessionRepository(db *sqlx.DB) *SQLiteSessionRepository { return &SQLiteSessionRepository{db: db} }
+
+func (r *SQLiteSessionRepository) Create(ctx context.Context, s *domainSession.Session) error {
+    _, err := r.db.ExecContext(ctx, `INSERT INTO sessions(id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip) VALUES(?, ?, ?, ?, ?, ?, ?)`,
+        s.ID, s.UserID, s.CreatedAt, s.ExpiresAt, s.LastSeenAt, s.UserAgent, s.ClientIP)
+    return err
+}
+
+func (r *SQLiteSessionRepository) FindByID(ctx context.Context, id string) (*domainSession.Session, error) {
+    type dbSession struct {
+        ID         string     `db:"id"`
+        UserID     string     `db:"user_id"`
+        CreatedAt  time.Time  `db:"created_at"`
+        ExpiresAt  time.Time  `db:"expires_at"`
+        LastSeenAt time.Time  `db:"last_seen_at"`
+        UserAgent  string     `db:"user_agent"`
+        ClientIP   string     `db:"client_ip"`
+        RevokedAt  *time.Time `db:"revoked_at"`
+    }
+
+    var row dbSession
+    err := r.db.GetContext(ctx, &row, `SELECT id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip, revoked_at FROM sessions WHERE id = ?`, id)
+    if err != nil {
+        if errors.Is(err, sql.ErrNoRows) { return nil, nil }
+        return nil, err
+    }
+    return &domainSession.Session{
+        ID:         row.ID,
+        UserID:     row.UserID,
+        CreatedAt:  row.CreatedAt,
+        ExpiresAt:  row.ExpiresAt,
+        LastSeenAt: row.LastSeenAt,
+        UserAgent:  row.UserAgent,
+        ClientIP:   row.ClientIP,
+        RevokedAt:  row.RevokedAt,
+    }, nil
+}
+
+func (r *SQLiteSessionRepository) Touch(ctx context.Context, id string, when time.Time) error {
+    _, err := r.db.ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE id = ?`, when, id)
+    return err
+}
+
+func (r *SQLiteSessionRepository) Revoke(ctx context.Context, id string, when time.Time) error {
+    _, err := r.db.ExecContext(ctx, `UPDATE sessions SET revoked_at = ? WHERE id = ?`, when, id)
+    return err
+}
+
+func (r *SQLiteSessionRepository) DeleteByUser(ctx context.Context, userID string) error {
+    _, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
+    return err
+}
+
+func (r *SQLiteSessionRepository) ListByUser(ctx context.Context, userID string) ([]*domainSession.Session, error) {
+    type dbSession struct {
+        ID         string     `db:"id"`
+        UserID     string     `db:"user_id"`
+        CreatedAt  time.Time  `db:"created_at"`
+        ExpiresAt  time.Time  `db:"expires_at"`
+        LastSeenAt time.Time  `db:"last_seen_at"`
+        UserAgent  string     `db:"user_agent"`
+        ClientIP   string     `db:"client_ip"`
+        RevokedAt  *time.Time `db:"revoked_at"`
+    }
+
+    rows := make([]dbSession, 0)
+    if err := r.db.SelectContext(ctx, &rows, `SELECT id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip, revoked_at FROM sessions WHERE user_id = ? ORDER BY created_at DESC`, userID); err != nil {
+        return nil, err
+    }
+
+    out := make([]*domainSession.Session, 0, len(rows))
+    for _, row := range rows {
+        out = append(out, &domainSession.Session{
+            ID:         row.ID,
+            UserID:     row.UserID,
+            CreatedAt:  row.CreatedAt,
+            ExpiresAt:  row.ExpiresAt,
+            LastSeenAt: row.LastSeenAt,
+            UserAgent:  row.UserAgent,
+            ClientIP:   row.ClientIP,
+            RevokedAt:  row.RevokedAt,
+        })
+    }
+    return out, nil
+}
+
+

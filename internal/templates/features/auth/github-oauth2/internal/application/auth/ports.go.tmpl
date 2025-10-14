@@ -1,0 +1,50 @@
+package auth
+
+import (
+    "context"
+    "time"
+
+    domainSession "{{ .ModulePath }}/internal/domain/session"
+    domainUser "{{ .ModulePath }}/internal/domain/user"
+)
+
+// OAuthProfile represents a normalized identity payload from an OAuth provider.
+type OAuthProfile struct {
+    Provider  string
+    Subject   string
+    Name      string
+    Email     string
+    AvatarURL string
+}
+
+// OAuthProvider abstracts provider-specific operations.
+type OAuthProvider interface {
+    ID() string
+    AuthCodeURL(state string) string
+    Exchange(ctx context.Context, code string) (string, error)
+    FetchProfile(ctx context.Context, accessToken string) (OAuthProfile, error)
+}
+
+// UserRepository is the domain user repository.
+type UserRepository interface {
+    FindByID(ctx context.Context, id string) (*domainUser.User, error)
+    FindByIdentity(ctx context.Context, provider, subject string) (*domainUser.User, error)
+    Create(ctx context.Context, u *domainUser.User) error
+    Update(ctx context.Context, u *domainUser.User) error
+    AttachIdentity(ctx context.Context, userID, provider, subject string) error
+    RunInTx(ctx context.Context, fn func(ctx context.Context, repo UserRepository) error) error
+}
+
+// SessionRepository is the domain session repository.
+type SessionRepository interface {
+    Create(ctx context.Context, s *domainSession.Session) error
+    FindByID(ctx context.Context, id string) (*domainSession.Session, error)
+    Touch(ctx context.Context, id string, when time.Time) error
+    Revoke(ctx context.Context, id string, when time.Time) error
+}
+
+// Clock abstracts time operations.
+type Clock interface {
+    Now() time.Time
+}
+

@@ -7,6 +7,7 @@ const (
 	CategoryStyling  = "styling"
 	CategoryHTTP     = "http"
 	CategoryDatabase = "database"
+	CategoryAuth     = "auth"
 )
 
 var categories = []FeatureCategory{
@@ -32,6 +33,12 @@ var categories = []FeatureCategory{
 		ID:            CategoryDatabase,
 		Name:          "Database",
 		Description:   "Select the database adapter for persistence needs.",
+		AllowMultiple: false,
+	},
+	{
+		ID:            CategoryAuth,
+		Name:          "Authentication",
+		Description:   "Optional authentication providers.",
 		AllowMultiple: false,
 	},
 }
@@ -199,12 +206,114 @@ var featureCatalog = []Feature{
 		Tags:        []string{"database", "SQLite", "sqlx"},
 		Directories: []string{
 			"internal/infrastructure/sqlite",
-			"var/data",
 		},
 		Templates: []Template{
 			{
 				Source:      "features/database/sqlite/internal/infrastructure/sqlite/sqlite.go.tmpl",
 				Destination: "internal/infrastructure/sqlite/sqlite.go",
+			},
+		},
+	},
+	{
+		ID:          "auth-github-oauth2",
+		CategoryID:  CategoryAuth,
+		Name:        "GitHub (oauth2)",
+		Description: "Login with GitHub using x/oauth2 and server-side sessions.",
+		Tags:        []string{"auth", "oauth2", "github"},
+		Directories: []string{
+			"db/migrations",
+			"internal/application/auth",
+			"internal/domain/identity",
+			"internal/domain/session",
+			"internal/domain/user",
+			"internal/infrastructure/auth",
+			"internal/infrastructure/http",
+			"internal/infrastructure/persistence",
+			"internal/transport/http",
+			"web/templates/pages",
+		},
+		Templates: []Template{
+			// HTTP transport
+			{
+				Source:      "features/auth/github-oauth2/internal/transport/http/oauth_handlers.go.tmpl",
+				Destination: "internal/transport/http/oauth_handlers.go",
+			},
+			{
+				Source:      "features/auth/github-oauth2/internal/transport/http/render.go.tmpl",
+				Destination: "internal/transport/http/render.go",
+			},
+			{
+				Source:      "features/auth/github-oauth2/internal/transport/http/auth_middleware.go.tmpl",
+				Destination: "internal/transport/http/auth_middleware.go",
+			},
+			// Web templates
+			{
+				Source:      "features/auth/github-oauth2/web/templates/pages/profile.html.tmpl",
+				Destination: "web/templates/pages/profile.html",
+			},
+			// Domain: user
+			{
+				Source:      "features/auth/github-oauth2/internal/domain/user/model.go.tmpl",
+				Destination: "internal/domain/user/model.go",
+			},
+			{
+				Source:      "features/auth/github-oauth2/internal/domain/user/repository.go.tmpl",
+				Destination: "internal/domain/user/repository.go",
+			},
+			{
+				Source:      "features/auth/github-oauth2/internal/domain/identity/model.go.tmpl",
+				Destination: "internal/domain/identity/model.go",
+			},
+			// Domain: session
+			{
+				Source:      "features/auth/github-oauth2/internal/domain/session/model.go.tmpl",
+				Destination: "internal/domain/session/model.go",
+			},
+			{
+				Source:      "features/auth/github-oauth2/internal/domain/session/repository.go.tmpl",
+				Destination: "internal/domain/session/repository.go",
+			},
+			// Application
+			{
+				Source:      "features/auth/github-oauth2/internal/application/auth/service.go.tmpl",
+				Destination: "internal/application/auth/service.go",
+			},
+			{
+				Source:      "features/auth/github-oauth2/internal/application/auth/ports.go.tmpl",
+				Destination: "internal/application/auth/ports.go",
+			},
+			// Infrastructure: auth provider
+			{
+				Source:      "features/auth/github-oauth2/internal/infrastructure/auth/github_oauth.go.tmpl",
+				Destination: "internal/infrastructure/auth/github_oauth.go",
+			},
+			// Infrastructure: persistence (user)
+			{
+				Source:      "features/auth/github-oauth2/internal/infrastructure/persistence/user_repository_sqlite.go.tmpl",
+				Destination: "internal/infrastructure/persistence/user_repository_sqlite.go",
+			},
+			// Infrastructure: persistence (session)
+			{
+				Source:      "features/auth/github-oauth2/internal/infrastructure/persistence/session_repository_sqlite.go.tmpl",
+				Destination: "internal/infrastructure/persistence/session_repository_sqlite.go",
+			},
+			// Infrastructure: http cookie helpers
+			{
+				Source:      "features/auth/github-oauth2/internal/infrastructure/http/cookies.go.tmpl",
+				Destination: "internal/infrastructure/http/cookies.go",
+			},
+			// Migrations
+			{
+				Source:      "features/auth/github-oauth2/db/migrations/0001_create_users.sql.tmpl",
+				Destination: "db/migrations/0001_create_users.sql",
+			},
+			{
+				Source:      "features/auth/github-oauth2/db/migrations/0002_create_sessions.sql.tmpl",
+				Destination: "db/migrations/0002_create_sessions.sql",
+			},
+			{
+				Source:      "features/auth/github-oauth2/db/migrations/0003_create_user_identities.sql.tmpl",
+				Destination: "db/migrations/0003_create_user_identities.sql",
 			},
 		},
 	},

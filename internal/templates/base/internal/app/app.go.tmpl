@@ -3,13 +3,23 @@ package app
 import (
     "context"
     "fmt"
+    "os"
 
     {{- if .Stack.HasFeature "database-sqlite" }}
     "github.com/jmoiron/sqlx"
     {{- end }}
     httptransport "{{ .ModulePath }}/internal/transport/http"
+    env "{{ .ModulePath }}/internal/pkg/env"
     {{- if .Stack.HasFeature "database-sqlite" }}
     sqliteinfra "{{ .ModulePath }}/internal/infrastructure/sqlite"
+    {{- end }}
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    "strings"
+
+    appauth "{{ .ModulePath }}/internal/application/auth"
+    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
+    oauthinfra "{{ .ModulePath }}/internal/infrastructure/auth"
+    persist "{{ .ModulePath }}/internal/infrastructure/persistence"
     {{- end }}
 )
 
@@ -23,20 +33,57 @@ type App struct {
 
 // New constructs an App ready to run.
 func New(ctx context.Context) (*App, error) {
+    serverAddr := os.Getenv("SERVER_ADDR")
+    if serverAddr == "" {
+        serverAddr = ":3333"
+    }
     srv := httptransport.NewServer(httptransport.Config{
-        Addr: ":3333",
+        Addr: serverAddr,
     })
 
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    // Wire OAuth2-based auth if feature is enabled
+    clientID := env.Required("GITHUB_CLIENT_ID")
+    clientSecret := env.Required("GITHUB_CLIENT_SECRET")
+    callbackBase := strings.TrimRight(env.Get("OAUTH_CALLBACK_BASE", "http://localhost:3333"), "/")
+    if callbackBase == "" {
+        callbackBase = "http://localhost:3333"
+    }
+    callbackURL := callbackBase + "/auth/github/callback"
+    providers := []appauth.OAuthProvider{
+        oauthinfra.NewGithubProvider(clientID, clientSecret, callbackURL, nil),
+    }
+
+    var users appauth.UserRepository
+    var sessions appauth.SessionRepository
     {{- if .Stack.HasFeature "database-sqlite" }}
-    db, err := sqliteinfra.Init(ctx, sqliteinfra.Config{})
+    // initialize db before repositories
+    {{- end }}
+    ttl := httpinfra.SessionTTL()
+    // users/sessions repositories assigned after db initialization below
+    {{- end }}
+
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    dsn := env.Required("SQLITE_DSN")
+    db, err := sqliteinfra.Init(ctx, sqliteinfra.Config{DSN: dsn})
     if err != nil {
         return nil, err
     }
 
     fmt.Println("Connected to SQLite database")
 
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    users = persist.NewSQLiteUserRepository(db)
+    sessions = persist.NewSQLiteSessionRepository(db)
+    authService := appauth.NewService(users, sessions, providers, appauth.SystemClock{}, ttl)
+    srv.Router().SetAuthService(authService)
+    {{- end }}
+
     return &App{server: srv, db: db}, nil
     {{- else }}
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    // Auth is disabled when SQLite is not selected; do not wire repositories
+    {{- end }}
     return &App{server: srv}, nil
     {{- end }}
 }

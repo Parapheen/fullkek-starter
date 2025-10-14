@@ -42,6 +42,8 @@ type featureBinding struct {
 	value    string
 }
 
+const sqliteFeatureID = "database-sqlite"
+
 // Run executes the wizard and returns the user's selections.
 func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 	if len(opts.Categories) == 0 {
@@ -102,6 +104,14 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 
 	bindings := make([]*featureBinding, 0, len(opts.Categories))
 
+	var databaseBinding *featureBinding
+	authEnabled := func() bool {
+		if databaseBinding == nil {
+			return false
+		}
+		return strings.TrimSpace(databaseBinding.value) == sqliteFeatureID
+	}
+
 	for _, category := range opts.Categories {
 		choices := opts.FeatureChoices[category.ID]
 		binding := &featureBinding{category: category, choices: choices}
@@ -140,7 +150,18 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		}
 
 		bindings = append(bindings, binding)
-		groups = append(groups, huh.NewGroup(selectField))
+		if category.ID == stacks.CategoryDatabase {
+			databaseBinding = binding
+		}
+
+		group := huh.NewGroup(selectField)
+		if category.ID == stacks.CategoryAuth {
+			group.WithHideFunc(func() bool {
+				return !authEnabled()
+			})
+		}
+
+		groups = append(groups, group)
 	}
 
 	groups = append(groups, huh.NewGroup(
@@ -189,6 +210,9 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 			if len(bindings) > 0 {
 				b.WriteString("\nSelected features:\n")
 				for _, binding := range bindings {
+					if binding.category.ID == stacks.CategoryAuth && !authEnabled() {
+						continue
+					}
 					featureName := binding.selectedFeatureName()
 					if featureName != "" && featureName != "<none>" {
 						writeLine("  • %s → %s", binding.category.Name, featureName)
@@ -237,8 +261,13 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		outputDir = suggestOutputDir(appName)
 	}
 
+	authAvailable := authEnabled()
+
 	selection := make(map[string]string, len(bindings))
 	for _, binding := range bindings {
+		if binding.category.ID == stacks.CategoryAuth && !authAvailable {
+			continue
+		}
 		selection[binding.category.ID] = binding.value
 	}
 

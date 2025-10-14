@@ -1,0 +1,15 @@
+package http
+
+import (
+	"html/template"
+	"net/http"
+)
+
+func renderTemplate(w http.ResponseWriter, path string, data any) error {
+	tmpl, err := template.ParseFiles(path)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	return tmpl.Execute(w, data)
+}

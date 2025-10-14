@@ -1,0 +1,24 @@
+package session
+
+import "time"
+
+// Session represents a server-side login session persisted in storage.
+type Session struct {
+    ID         string
+    UserID     string
+    CreatedAt  time.Time
+    ExpiresAt  time.Time
+    LastSeenAt time.Time
+    UserAgent  string
+    ClientIP   string
+    RevokedAt  *time.Time
+}
+
+func (s *Session) IsExpired(now time.Time) bool {
+    if s.RevokedAt != nil && s.RevokedAt.Before(now) {
+        return true
+    }
+    return now.After(s.ExpiresAt)
+}
+
+

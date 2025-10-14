@@ -1,0 +1,53 @@
+package http
+
+import (
+    "crypto/rand"
+    "encoding/hex"
+    "net/http"
+    "strings"
+    "time"
+
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    "github.com/jmoiron/sqlx"
+    persist "{{ .ModulePath }}/internal/infrastructure/persistence"
+    {{- end }}
+    appauth "{{ .ModulePath }}/internal/application/auth"
+    env "{{ .ModulePath }}/internal/pkg/env"
+    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
+    oauthinfra "{{ .ModulePath }}/internal/infrastructure/auth"
+    
+)
+
+func randomKey(n int) []byte { b := make([]byte, n); _, _ = rand.Read(b); return b }
+
+func (r *Router) initOAuth() {
+    clientID := env.Required("GITHUB_CLIENT_ID")
+    clientSecret := env.Required("GITHUB_CLIENT_SECRET")
+    callbackBase := strings.TrimRight(env.Get("OAUTH_CALLBACK_BASE", "http://localhost:3333"), "/")
+    if callbackBase == "" {
+        callbackBase = "http://localhost:3333"
+    }
+    callbackURL := callbackBase + "/auth/github/callback"
+
+    providers := []appauth.OAuthProvider{
+        oauthinfra.NewGithubProvider(clientID, clientSecret, callbackURL, http.DefaultClient),
+    }
+
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    // When SQLite enabled, assume app has initialized a *sqlx.DB and exposed it here.
+    var users appauth.UserRepository
+    var sessions appauth.SessionRepository
+    if rDB, ok := any(r).(interface{ DB() *sqlx.DB }); ok && rDB.DB() != nil {
+        users = persist.NewSQLiteUserRepository(rDB.DB())
+        sessions = persist.NewSQLiteSessionRepository(rDB.DB())
+    }
+    {{- end }}
+
+    {{- if .Stack.HasFeature "database-sqlite" }}
+    ttl := httpinfra.SessionTTL()
+    r.authService = appauth.NewService(users, sessions, providers, appauth.SystemClock{}, ttl)
+    if len(providers) > 0 {
+        r.authDefaultProvider = providers[0].ID()
+    }
+    {{- end }}
+}

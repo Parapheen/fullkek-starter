@@ -1,4 +1,4 @@
-.PHONY: help dev build run go test clean {{if has "Tailwind" .Stack.Tags}} tailwind-install tailwind-watch tailwind-build tailwind-ensure{{end}}
+.PHONY: help dev build run go test clean {{if has "Tailwind" .Stack.Tags}} tailwind-install tailwind-watch tailwind-build tailwind-ensure{{end}}{{if .Stack.HasFeature "database-sqlite"}} goose-install migrate-create migrate-up migrate-down migrate-status{{end}}
 
 APP_URL ?= http://localhost:3333
 
@@ -18,7 +18,14 @@ help:
 	@echo "  make build            - Build the application binary"
 	@echo "  make run              - Run the application"
 	@echo "  make test             - Run tests"
-	@echo "  make clean            - Clean build artifacts"{{if has "Tailwind" .Stack.Tags}}
+	@echo "  make clean            - Clean build artifacts"
+{{- if .Stack.HasFeature "database-sqlite" }}
+	@echo "  make goose-install    - Install goose CLI locally into ./bin"
+	@echo "  make migrate-create   - Create a new migration (name=...)"
+	@echo "  make migrate-up       - Apply migrations to SQLite"
+	@echo "  make migrate-down     - Roll back migrations"
+	@echo "  make migrate-status   - Show migration status"
+{{- end }}{{if has "Tailwind" .Stack.Tags}}
 	@echo "  make tailwind-install - Download standalone Tailwind CSS binary"
 	@echo "  make tailwind-watch   - Watch and rebuild Tailwind CSS on changes"
 	@echo "  make tailwind-build   - Build Tailwind CSS once"{{end}}
@@ -41,6 +48,11 @@ go:{{if has "Tailwind" .Stack.Tags}} tailwind-ensure{{end}}
 		TAILWIND_PID=$$!; \
 		trap 'kill -0 $$TAILWIND_PID >/dev/null 2>&1 && kill $$TAILWIND_PID' EXIT INT TERM; \
 		echo "Tailwind watcher running (PID $$TAILWIND_PID)."; \
+{{- if .Stack.HasFeature "database-sqlite" }}
+		echo "Installing goose and applying migrations (if any)..."; \
+		$(MAKE) goose-install; \
+		if [ -d $(MIGRATIONS_DIR) ]; then $(MAKE) migrate-up; else echo "No migrations found. Skipping migrate-up."; fi; \
+{{- end }}
 		echo "Starting Go server..."; \
 		go mod tidy; \
 		go run ./cmd/server \
@@ -65,6 +77,11 @@ go:{{if has "Tailwind" .Stack.Tags}} tailwind-ensure{{end}}
 		TAILWIND_PID=$$!; \
 		trap 'kill -0 $$TAILWIND_PID >/dev/null 2>&1 && kill $$TAILWIND_PID' EXIT INT TERM; \
 		echo "DaisyUI Tailwind watcher running (PID $$TAILWIND_PID)."; \
+{{- if .Stack.HasFeature "database-sqlite" }}
+		echo "Installing goose and applying migrations (if any)..."; \
+		$(MAKE) goose-install; \
+		if [ -d $(MIGRATIONS_DIR) ]; then $(MAKE) migrate-up; else echo "No migrations found. Skipping migrate-up."; fi; \
+{{- end }}
 		echo "Starting Go server..."; \
 		go mod tidy; \
 		go run ./cmd/server; \
@@ -72,6 +89,11 @@ go:{{if has "Tailwind" .Stack.Tags}} tailwind-ensure{{end}}
 {{- else }}
 	@$(MAKE) --no-print-directory >/dev/null 2>&1 || true
 	@echo "Starting Go server..."
+{{- if .Stack.HasFeature "database-sqlite" }}
+	@echo "Installing goose and applying migrations (if any)..."
+	@$(MAKE) goose-install
+	@sh -c 'if [ -d $(MIGRATIONS_DIR) ]; then $(MAKE) migrate-up; else echo "No migrations found. Skipping migrate-up."; fi'
+{{- end }}
 	go run ./cmd/server
 {{- end }}
 
@@ -95,6 +117,35 @@ clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf bin/
 	go clean
+
+{{- if .Stack.HasFeature "database-sqlite" }}
+# --- Database migrations (goose) ---
+DB_DIR ?= data
+DB_PATH ?= $(DB_DIR)/app.db
+DB_DSN ?= file:$(DB_PATH)?cache=shared&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)
+MIGRATIONS_DIR ?= db/migrations
+
+goose-install:
+	@echo "Installing goose CLI..."
+	@mkdir -p bin
+	@GOBIN=$(PWD)/bin go install github.com/pressly/goose/v3/cmd/goose@latest
+
+migrate-create:
+	@mkdir -p $(DB_DIR)
+	@./bin/goose -dir $(MIGRATIONS_DIR) create $(name) sql
+
+migrate-up:
+	@mkdir -p $(DB_DIR)
+	@./bin/goose -dir $(MIGRATIONS_DIR) sqlite3 $(DB_PATH) up
+
+migrate-down:
+	@mkdir -p $(DB_DIR)
+	@./bin/goose -dir $(MIGRATIONS_DIR) sqlite3 $(DB_PATH) down
+
+migrate-status:
+	@mkdir -p $(DB_DIR)
+	@./bin/goose -dir $(MIGRATIONS_DIR) sqlite3 $(DB_PATH) status
+{{- end }}
 
 {{if has "Tailwind" .Stack.Tags}}
 # Tailwind CSS standalone binary commands

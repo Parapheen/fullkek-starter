@@ -1,0 +1,124 @@
+package http
+
+import (
+    "fmt"
+    "net/http"
+    "path/filepath"
+    "strings"
+
+    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
+)
+
+// authStart begins the OAuth flow for the requested provider.
+func (r *Router) authStart(w http.ResponseWriter, req *http.Request) {
+    if r.authService == nil {
+        http.Error(w, "auth not configured", http.StatusServiceUnavailable)
+        return
+    }
+    provider := providerFromRequest(req)
+    if provider == "" {
+        http.NotFound(w, req)
+        return
+    }
+    state, url := r.authService.StartOAuth(req.Context(), provider)
+    if state == "" || url == "" {
+        http.Error(w, "oauth provider unavailable", http.StatusBadRequest)
+        return
+    }
+    http.SetCookie(w, &http.Cookie{
+        Name:     "oauth_state",
+        Value:    state,
+        Path:     "/",
+        HttpOnly: true,
+        SameSite: http.SameSiteLaxMode,
+        MaxAge:   300, // 5 minutes
+    })
+    http.Redirect(w, req, url, http.StatusFound)
+}
+
+// authCallback completes the OAuth flow and stores the user in a server-side session.
+func (r *Router) authCallback(w http.ResponseWriter, req *http.Request) {
+    if r.authService == nil {
+        http.Error(w, "auth not configured", http.StatusServiceUnavailable)
+        return
+    }
+    provider := providerFromRequest(req)
+    if provider == "" {
+        http.NotFound(w, req)
+        return
+    }
+    code := req.URL.Query().Get("code")
+    state := req.URL.Query().Get("state")
+    cookieState := httpinfra.ReadCookie(req, "oauth_state")
+    ua := req.Header.Get("User-Agent")
+    ip := req.RemoteAddr
+
+    user, sess, err := r.authService.HandleCallback(req.Context(), provider, code, state, cookieState, ua, ip)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("auth error: %v", err), http.StatusUnauthorized)
+        return
+    }
+    httpinfra.SetCookie(w, httpinfra.SessionCookieName(), sess.ID, sess.ExpiresAt)
+    http.Redirect(w, req, "/profile", http.StatusFound)
+    _ = user
+}
+
+// profile renders a protected page with basic user info.
+func (r *Router) profile(w http.ResponseWriter, req *http.Request) {
+    if r.authService == nil {
+        http.Error(w, "auth not configured", http.StatusServiceUnavailable)
+        return
+    }
+    sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
+    user, _ := r.authService.CurrentUser(req.Context(), sid)
+    if user == nil {
+        http.Redirect(w, req, r.signInPath(), http.StatusFound)
+        return
+    }
+
+    data := struct {
+        Name      string
+        Email     string
+        AvatarURL string
+        ID        string
+    }{
+        Name:      user.Name,
+        Email:     user.Email,
+        AvatarURL: user.AvatarURL,
+        ID:        user.ID,
+    }
+
+    if err := renderTemplate(w, filepath.Join("web", "templates", "pages", "profile.html"), data); err != nil {
+        http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
+        return
+    }
+}
+
+// logout clears the session.
+func (r *Router) logout(w http.ResponseWriter, req *http.Request) {
+    sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
+    if r.authService != nil {
+        _ = r.authService.Logout(req.Context(), sid)
+    }
+    httpinfra.ClearCookie(w, httpinfra.SessionCookieName())
+    http.Redirect(w, req, "/", http.StatusFound)
+}
+
+func providerFromRequest(req *http.Request) string {
+    path := strings.Trim(req.URL.Path, "/")
+    parts := strings.Split(path, "/")
+    if len(parts) < 2 {
+        return ""
+    }
+    if parts[0] != "auth" {
+        return ""
+    }
+    return parts[1]
+}
+
+func (r *Router) signInPath() string {
+    if r.authDefaultProvider != "" {
+        return "/auth/" + r.authDefaultProvider
+    }
+    return "/auth/github"
+}

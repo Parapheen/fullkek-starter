@@ -9,6 +9,9 @@ import (
 {{- if .Stack.HasFeature "frontend-htmx" }}
     "sync/atomic"
 {{- end }}
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    appauth "{{ .ModulePath }}/internal/application/auth"
+    {{- end }}
 )
 
 var indexPage = filepath.Join("web", "templates", "pages", "index.html")
@@ -16,6 +19,10 @@ var indexPage = filepath.Join("web", "templates", "pages", "index.html")
 type Router struct {
 {{- if .Stack.HasFeature "frontend-htmx" }}
     exampleCounter atomic.Int64
+{{- end }}
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
+    authService *appauth.Service
+    authDefaultProvider string
 {{- end }}
 }
 
@@ -29,6 +36,14 @@ func (r *Router) Mount(router chi.Router) {
     router.Get("/", r.home)
     router.Get("/healthz", r.health)
 
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    // Auth routes
+    router.Get("/auth/{provider}", r.authStart)
+    router.Get("/auth/{provider}/callback", r.authCallback)
+    router.Get("/logout", r.logout)
+    router.Get("/profile", r.profile)
+    {{- end }}
+
 {{- if or (.Stack.HasFeature "frontend-htmx") (.Stack.HasFeature "frontend-fixi") }}
     // Demo API routes backing the generated UI examples. Remove them once replaced.
     router.Get("/api/counter", r.apiCounter)
@@ -39,6 +54,18 @@ func (r *Router) Mount(router chi.Router) {
     {{- end }}
 {{- end }}
 }
+
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
+
+// SetAuthService injects the authentication service into the router.
+func (r *Router) SetAuthService(svc *appauth.Service) {
+    r.authService = svc
+    if svc != nil {
+        r.authDefaultProvider = svc.PrimaryProvider()
+    }
+}
+
+{{- end }}
 
 func (r *Router) home(w http.ResponseWriter, req *http.Request) {
     http.ServeFile(w, req, indexPage)

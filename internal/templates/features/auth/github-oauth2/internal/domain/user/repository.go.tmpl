@@ -1,0 +1,12 @@
+package user
+
+import "context"
+
+// Repository defines persistence operations for User and linked identities.
+type Repository interface {
+    FindByID(ctx context.Context, id string) (*User, error)
+    FindByIdentity(ctx context.Context, provider, subject string) (*User, error)
+    Create(ctx context.Context, u *User) error
+    Update(ctx context.Context, u *User) error
+    AttachIdentity(ctx context.Context, userID, provider, subject string) error
+}

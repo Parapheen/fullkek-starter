@@ -1,0 +1,18 @@
+{{- if .Stack.HasFeature "database-sqlite" -}}
+-- +goose Up
+CREATE TABLE IF NOT EXISTS user_identities (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    UNIQUE(provider, subject)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_identities_user_id ON user_identities(user_id);
+
+-- +goose Down
+DROP TABLE IF EXISTS user_identities;
+{{- end -}}
+
+

@@ -1,0 +1,18 @@
+package session
+
+import (
+    "context"
+    "time"
+)
+
+// Repository defines persistence operations for Session.
+type Repository interface {
+    Create(ctx context.Context, s *Session) error
+    FindByID(ctx context.Context, id string) (*Session, error)
+    Touch(ctx context.Context, id string, when time.Time) error
+    Revoke(ctx context.Context, id string, when time.Time) error
+    DeleteByUser(ctx context.Context, userID string) error
+    ListByUser(ctx context.Context, userID string) ([]*Session, error)
+}
+
+

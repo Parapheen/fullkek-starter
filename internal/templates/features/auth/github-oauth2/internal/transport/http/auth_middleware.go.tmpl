@@ -1,0 +1,29 @@
+package http
+
+import (
+    "context"
+    "net/http"
+
+    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
+)
+
+type ctxKey string
+
+const userKey ctxKey = "currentUser"
+
+func withUser(ctx context.Context, user interface{}) context.Context { return context.WithValue(ctx, userKey, user) }
+func UserFromContext(ctx context.Context) interface{} { return ctx.Value(userKey) }
+
+// AuthMiddleware resolves the current user from session cookie and injects into context.
+func (r *Router) AuthMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+        if r.authService == nil { next.ServeHTTP(w, req); return }
+        sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
+        if sid == "" { next.ServeHTTP(w, req); return }
+        user, _ := r.authService.CurrentUser(req.Context(), sid)
+        if user == nil { next.ServeHTTP(w, req); return }
+        next.ServeHTTP(w, req.WithContext(withUser(req.Context(), user)))
+    })
+}
+
+

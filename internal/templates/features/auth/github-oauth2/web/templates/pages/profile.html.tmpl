@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ .AppName }} - Profile</title>
+    {{- if .Stack.HasFeature "styling-daisyui" }}
+    <link rel="stylesheet" href="/assets/styles/output.css" />
+    <link rel="stylesheet" href="/assets/styles/custom.css" />
+    <script src="https://cdn.jsdelivr.net/npm/theme-change@2.0.2/index.js" defer></script>
+    {{- if .Stack.HasFeature "frontend-htmx" }}
+    <script src="/assets/scripts/htmx.min.js" defer></script>
+    {{- end }}
+    {{- if .Stack.HasFeature "frontend-fixi" }}
+    <script src="/assets/scripts/fixi.js" defer></script>
+    {{- end }}
+    {{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/basecoat.cdn.min.css" />
+    <link rel="stylesheet" href="/assets/styles/output.css" />
+    <script src="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/js/all.min.js" defer></script>
+    {{- if .Stack.HasFeature "frontend-htmx" }}
+    <script src="/assets/scripts/htmx.min.js" defer></script>
+    {{- end }}
+    {{- if .Stack.HasFeature "frontend-fixi" }}
+    <script src="/assets/scripts/fixi.js" defer></script>
+    {{- end }}
+    {{- else }}
+    <link rel="stylesheet" href="/assets/styles/output.css" />
+    {{- if .Stack.HasFeature "frontend-htmx" }}
+    <script src="/assets/scripts/htmx.min.js" defer></script>
+    {{- end }}
+    {{- if .Stack.HasFeature "frontend-fixi" }}
+    <script src="/assets/scripts/fixi.js" defer></script>
+    {{- end }}
+    {{- end }}
+  </head>
+  {{- if .Stack.HasFeature "styling-daisyui" }}
+  <body class="min-h-screen bg-base-200 text-base-content">
+    <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-2">
+          <span class="badge badge-outline badge-accent uppercase tracking-[0.3em]">Authenticated</span>
+          <h1 class="text-4xl font-black">Your profile</h1>
+          <p class="max-w-xl text-sm opacity-70">This page renders on the server so theme tokens, avatars, and account details stay in sync with each request.</p>
+        </div>
+        <a class="btn btn-outline" href="/logout">Logout</a>
+      </header>
+
+      <section class="card bg-base-100 shadow-xl">
+        <div class="card-body gap-8 sm:flex sm:items-center">
+          <div class="avatar">
+            <div class="mask mask-squircle h-28 w-28">
+              <img src="{{ printf "{{ .AvatarURL }}" }}" alt="Avatar of {{ printf "{{ .Name }}" }}" />
+            </div>
+          </div>
+          <div class="flex-1 space-y-3">
+            <div>
+              <h2 class="card-title text-3xl">{{ printf "{{ .Name }}" }}</h2>
+              <p class="text-base opacity-70">{{ printf "{{ .Email }}" }}</p>
+            </div>
+            <div class="grid gap-3 rounded-2xl bg-base-200/70 p-4 text-sm opacity-80">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold">Account ID</span>
+                <code class="text-xs">{{ printf "{{ .ID }}" }}</code>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="font-semibold">Provider</span>
+                <span>OAuth Identity</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card bg-base-100 shadow-xl">
+        <div class="card-body space-y-4">
+          <header>
+            <h2 class="card-title">Theme aware layout</h2>
+            <p class="text-sm opacity-70">DaisyUI uses the site theme tokens, so your profile matches whichever palette is active.</p>
+          </header>
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="badge badge-outline">bg-base-100</span>
+            <span class="badge badge-outline">border-base-300</span>
+            <span class="badge badge-outline">text-base-content</span>
+          </div>
+          <p class="text-sm opacity-70">Switch the theme from the app shell or wire the <code class="font-mono text-xs">data-choose-theme</code> selector into this page—styles update without touching the template.</p>
+        </div>
+      </section>
+    </main>
+  </body>
+  {{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}
+  <body class="bg-slate-50 text-slate-900">
+    <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-2">
+          <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-sky-600">Authenticated</span>
+          <h1 class="text-4xl font-bold leading-tight">Your profile</h1>
+          <p class="max-w-xl text-sm text-slate-600">Rendered serverside with Tailwind utilities and Basecoat components so every request sees the latest account data.</p>
+        </div>
+        <a class="btn" href="/logout">Logout</a>
+      </header>
+
+      <article class="card w-full">
+        <div class="card-body gap-8 sm:flex sm:items-center">
+          <figure class="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+            <img class="h-28 w-28 rounded-2xl object-cover" src="{{ printf "{{ .AvatarURL }}" }}" alt="Avatar of {{ printf "{{ .Name }}" }}" />
+          </figure>
+          <div class="flex-1 space-y-4">
+            <div>
+              <h2 class="card-title text-3xl">{{ printf "{{ .Name }}" }}</h2>
+              <p class="text-base text-slate-600">{{ printf "{{ .Email }}" }}</p>
+            </div>
+            <div class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-100/60 p-4 text-sm text-slate-600">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-slate-700">Account ID</span>
+                <code class="text-xs text-slate-500">{{ printf "{{ .ID }}" }}</code>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-slate-700">Provider</span>
+                <span>OAuth Identity</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card w-full">
+        <div class="card-body space-y-4">
+          <header>
+            <h2 class="card-title">Basecoat + Tailwind</h2>
+            <p class="text-sm text-slate-600">Cards, buttons, and badges come from Basecoat while spacing and layout rely on Tailwind utilities.</p>
+          </header>
+          <div class="flex flex-wrap gap-2">
+            <span class="badge">Badge</span>
+            <span class="badge-secondary">Secondary</span>
+            <span class="badge-outline">Outline</span>
+          </div>
+          <footer class="flex flex-wrap gap-2">
+            <button class="btn" type="button">Primary action</button>
+            <button class="btn-outline" type="button">Secondary</button>
+          </footer>
+        </div>
+      </article>
+    </main>
+  </body>
+  {{- else }}
+  <body class="bg-slate-50 text-slate-900">
+    <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-2">
+          <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-sky-600">Authenticated</span>
+          <h1 class="text-4xl font-bold leading-tight">Your profile</h1>
+          <p class="max-w-xl text-sm text-slate-600">Server-rendered template keeps OAuth profile details current without client-side JavaScript.</p>
+        </div>
+        <a class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100" href="/logout">Logout</a>
+      </header>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm sm:flex sm:gap-8">
+        <figure class="rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-sm">
+          <img class="h-28 w-28 rounded-2xl object-cover" src="{{ printf "{{ .AvatarURL }}" }}" alt="Avatar of {{ printf "{{ .Name }}" }}" />
+        </figure>
+        <div class="mt-6 flex-1 space-y-4 sm:mt-0">
+          <div>
+            <h2 class="text-3xl font-semibold text-slate-900">{{ printf "{{ .Name }}" }}</h2>
+            <p class="text-base text-slate-600">{{ printf "{{ .Email }}" }}</p>
+          </div>
+          <dl class="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+            <div class="flex items-center justify-between">
+              <dt class="font-semibold text-slate-700">Account ID</dt>
+              <dd><code class="text-xs text-slate-500">{{ printf "{{ .ID }}" }}</code></dd>
+            </div>
+            <div class="flex items-center justify-between">
+              <dt class="font-semibold text-slate-700">Provider</dt>
+              <dd>OAuth Identity</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm space-y-4">
+        <h2 class="text-2xl font-semibold text-slate-900">Theme-ready layout</h2>
+        <p class="text-sm text-slate-600">Using the Tailwind Slate palette keeps typography and surfaces consistent with the starter landing page.</p>
+        <div class="flex flex-wrap items-center gap-3 text-xs font-medium">
+          <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-slate-600">bg-slate-50</span>
+          <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-slate-600">border-slate-200</span>
+          <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-slate-600">text-slate-900</span>
+        </div>
+      </section>
+    </main>
+  </body>
+  {{- end }}
+</html>

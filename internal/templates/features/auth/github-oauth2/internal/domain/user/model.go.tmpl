@@ -1,0 +1,13 @@
+package user
+
+import "time"
+
+// User represents an authenticated person in the system.
+type User struct {
+    ID        string
+    Email     string
+    Name      string
+    AvatarURL string
+    CreatedAt time.Time
+}
+

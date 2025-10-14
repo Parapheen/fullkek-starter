@@ -1,0 +1,158 @@
+package persistence
+
+import (
+    "context"
+    "crypto/rand"
+    "database/sql"
+    "encoding/hex"
+    "errors"
+    "time"
+
+    "github.com/jmoiron/sqlx"
+
+    appauth "{{ .ModulePath }}/internal/application/auth"
+    domainUser "{{ .ModulePath }}/internal/domain/user"
+)
+
+type SQLiteUserRepository struct {
+    db *sqlx.DB
+}
+
+func NewSQLiteUserRepository(db *sqlx.DB) *SQLiteUserRepository {
+    return &SQLiteUserRepository{db: db}
+}
+
+func (r *SQLiteUserRepository) FindByID(ctx context.Context, id string) (*domainUser.User, error) {
+    return fetchUser(ctx, r.db, `SELECT id, email, name, avatar_url, created_at FROM users WHERE id = ?`, id)
+}
+
+func (r *SQLiteUserRepository) FindByIdentity(ctx context.Context, provider, subject string) (*domainUser.User, error) {
+    const query = `SELECT u.id, u.email, u.name, u.avatar_url, u.created_at
+FROM users u
+INNER JOIN user_identities ui ON ui.user_id = u.id
+WHERE ui.provider = ? AND ui.subject = ?`
+    return fetchUser(ctx, r.db, query, provider, subject)
+}
+
+func (r *SQLiteUserRepository) Create(ctx context.Context, u *domainUser.User) error {
+    return insertUser(ctx, r.db, u)
+}
+
+func (r *SQLiteUserRepository) Update(ctx context.Context, u *domainUser.User) error {
+    return updateUser(ctx, r.db, u)
+}
+
+func (r *SQLiteUserRepository) AttachIdentity(ctx context.Context, userID, provider, subject string) error {
+    return insertIdentity(ctx, r.db, userID, provider, subject)
+}
+
+func (r *SQLiteUserRepository) RunInTx(ctx context.Context, fn func(ctx context.Context, repo appauth.UserRepository) error) error {
+    return runInTx(ctx, r.db, func(tx *sqlx.Tx) error {
+        txRepo := &txUserRepository{tx: tx}
+        return fn(ctx, txRepo)
+    })
+}
+
+type txUserRepository struct {
+    tx *sqlx.Tx
+}
+
+func (r *txUserRepository) FindByID(ctx context.Context, id string) (*domainUser.User, error) {
+    return fetchUser(ctx, r.tx, `SELECT id, email, name, avatar_url, created_at FROM users WHERE id = ?`, id)
+}
+
+func (r *txUserRepository) FindByIdentity(ctx context.Context, provider, subject string) (*domainUser.User, error) {
+    const query = `SELECT u.id, u.email, u.name, u.avatar_url, u.created_at
+FROM users u
+INNER JOIN user_identities ui ON ui.user_id = u.id
+WHERE ui.provider = ? AND ui.subject = ?`
+    return fetchUser(ctx, r.tx, query, provider, subject)
+}
+
+func (r *txUserRepository) Create(ctx context.Context, u *domainUser.User) error {
+    return insertUser(ctx, r.tx, u)
+}
+
+func (r *txUserRepository) Update(ctx context.Context, u *domainUser.User) error {
+    return updateUser(ctx, r.tx, u)
+}
+
+func (r *txUserRepository) AttachIdentity(ctx context.Context, userID, provider, subject string) error {
+    return insertIdentity(ctx, r.tx, userID, provider, subject)
+}
+
+func (r *txUserRepository) RunInTx(ctx context.Context, fn func(ctx context.Context, repo appauth.UserRepository) error) error {
+    return fn(ctx, r)
+}
+
+type dbUser struct {
+    ID        string    `db:"id"`
+    Email     string    `db:"email"`
+    Name      string    `db:"name"`
+    AvatarURL string    `db:"avatar_url"`
+    CreatedAt time.Time `db:"created_at"`
+}
+
+func (u dbUser) toDomain() *domainUser.User {
+    return &domainUser.User{
+        ID:        u.ID,
+        Email:     u.Email,
+        Name:      u.Name,
+        AvatarURL: u.AvatarURL,
+        CreatedAt: u.CreatedAt,
+    }
+}
+
+func fetchUser(ctx context.Context, q sqlx.QueryerContext, query string, args ...any) (*domainUser.User, error) {
+    var row dbUser
+    if err := sqlx.GetContext(ctx, q, &row, query, args...); err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            return nil, nil
+        }
+        return nil, err
+    }
+    return row.toDomain(), nil
+}
+
+func insertUser(ctx context.Context, exec sqlx.ExecerContext, u *domainUser.User) error {
+    _, err := exec.ExecContext(ctx, `INSERT INTO users(id, email, name, avatar_url, created_at) VALUES(?, ?, ?, ?, ?)`,
+        u.ID, u.Email, u.Name, u.AvatarURL, u.CreatedAt)
+    return err
+}
+
+func updateUser(ctx context.Context, exec sqlx.ExecerContext, u *domainUser.User) error {
+    _, err := exec.ExecContext(ctx, `UPDATE users SET email = ?, name = ?, avatar_url = ? WHERE id = ?`,
+        u.Email, u.Name, u.AvatarURL, u.ID)
+    return err
+}
+
+func insertIdentity(ctx context.Context, exec sqlx.ExecerContext, userID, provider, subject string) error {
+    identityID, err := randomID(16)
+    if err != nil {
+        return err
+    }
+    _, err = exec.ExecContext(ctx, `INSERT INTO user_identities(id, user_id, provider, subject, created_at) VALUES(?, ?, ?, ?, ?)`,
+        identityID, userID, provider, subject, time.Now().UTC())
+    return err
+}
+
+func randomID(n int) (string, error) {
+    b := make([]byte, n)
+    if _, err := rand.Read(b); err != nil {
+        return "", err
+    }
+    return hex.EncodeToString(b), nil
+}
+
+func runInTx(ctx context.Context, db *sqlx.DB, fn func(*sqlx.Tx) error) error {
+    tx, err := db.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+    if err != nil {
+        return err
+    }
+    if err := fn(tx); err != nil {
+        _ = tx.Rollback()
+        return err
+    }
+    return tx.Commit()
+}
+
