@@ -11,3 +11,12 @@ type User struct {
     CreatedAt time.Time
 }
 
+// Identity represents an external OAuth identity linked to a user.
+type Identity struct {
+    ID        string
+    UserID    string
+    Provider  string
+    Subject   string
+    CreatedAt time.Time
+}
+

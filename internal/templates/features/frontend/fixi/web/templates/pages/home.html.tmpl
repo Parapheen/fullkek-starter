@@ -22,10 +22,38 @@
         <p class="stack-eyebrow">Fixi.js</p>
         <h1 class="stack-title">Welcome to {{ .AppName }}</h1>
         <p class="stack-body-copy">Fixi.js glues declarative controllers to your HTML. Update <code>public/assets/scripts/fixi.js</code> to register controllers.</p>
+        {{- if .Stack.HasFeature "auth-github-oauth2" }}
+        <div id="auth-status"></div>
+        <script>
+          document.addEventListener("DOMContentLoaded", function () {
+            var el = document.getElementById("auth-status");
+            if (!el) {
+              return;
+            }
+            fetch("/fragments/auth/status", { credentials: "include" })
+              .then(function (resp) {
+                return resp.text();
+              })
+              .then(function (html) {
+                el.outerHTML = html;
+              })
+              .catch(function () {});
+          });
+        </script>
+        {{- end }}
       </header>
       <section class="stack-section" data-fx-controller="counter">
         <p class="stack-body-copy">Current count: <span data-fx-target="counter.value">0</span></p>
         <button class="stack-button" data-fx-action="counter#increment">Increment</button>
+      </section>
+      <section class="stack-section">
+        <h2 class="stack-subtitle">CSRF-protected form demo</h2>
+        <form method="post" action="/demo/echo" class="stack-form">
+          <label class="stack-label" for="message">Message</label>
+          <input id="message" name="message" type="text" class="stack-input" placeholder="Hello world" />
+          <button class="stack-button" type="submit">Submit</button>
+        </form>
+        <p class="stack-body-copy">CSRF token is injected automatically via cookie and a hidden field.</p>
       </section>
       <footer class="stack-section">
         <h2 class="stack-subtitle">Selected features</h2>
@@ -37,4 +65,5 @@
       </footer>
     </main>
   </body>
+  <script src="/assets/scripts/csrf.js" defer></script>
 </html>

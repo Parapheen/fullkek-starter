@@ -16,7 +16,7 @@ import (
     {{- if .Stack.HasFeature "auth-github-oauth2" }}
     "strings"
 
-    appauth "{{ .ModulePath }}/internal/application/auth"
+    appauth "{{ .ModulePath }}/internal/app/auth"
     httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
     oauthinfra "{{ .ModulePath }}/internal/infrastructure/auth"
     persist "{{ .ModulePath }}/internal/infrastructure/persistence"

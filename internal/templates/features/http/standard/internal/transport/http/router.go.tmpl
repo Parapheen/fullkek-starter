@@ -7,10 +7,12 @@ import (
 {{- if .Stack.HasFeature "frontend-htmx" }}
     "sync/atomic"
 {{- end }}
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
+    "html"
     "strings"
 
-    appauth "{{ .ModulePath }}/internal/application/auth"
+    appauth "{{ .ModulePath }}/internal/app/auth"
+    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
     {{- end }}
 )
 
@@ -22,7 +24,6 @@ type Router struct {
 {{- end }}
 {{- if .Stack.HasFeature "auth-github-oauth2" }}
     authService *appauth.Service
-    authDefaultProvider string
 {{- end }}
 }
 
@@ -35,6 +36,7 @@ func NewRouter() *Router {
 func (r *Router) Register(mux *http.ServeMux) {
     mux.HandleFunc("/", r.home)
     mux.HandleFunc("/healthz", r.health)
+    mux.HandleFunc("/demo/echo", r.demoEcho)
 
     {{- if .Stack.HasFeature "auth-github-oauth2" }}
     // Auth routes
@@ -46,7 +48,9 @@ func (r *Router) Register(mux *http.ServeMux) {
         r.authStart(w, req)
     })
     mux.HandleFunc("/logout", r.logout)
-    mux.HandleFunc("/profile", r.profile)
+    mux.HandleFunc("/login", r.login)
+    mux.HandleFunc("/fragments/auth/status", r.authStatus)
+    mux.Handle("/profile", r.RequireAuth(http.HandlerFunc(r.profile)))
     {{- end }}
 
 {{- if or (.Stack.HasFeature "frontend-htmx") (.Stack.HasFeature "frontend-fixi") }}
@@ -65,9 +69,26 @@ func (r *Router) Register(mux *http.ServeMux) {
 // SetAuthService injects the authentication service into the router.
 func (r *Router) SetAuthService(svc *appauth.Service) {
     r.authService = svc
-    if svc != nil {
-        r.authDefaultProvider = svc.PrimaryProvider()
+}
+
+func (r *Router) authStatus(w http.ResponseWriter, req *http.Request) {
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
+    if r.authService == nil {
+        fmt.Fprint(w, `<div id="auth-status"><a class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-white" href="/login">Sign in</a></div>`)
+        return
     }
+    sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
+    user, _ := r.authService.CurrentUser(req.Context(), sid)
+    if user == nil {
+        fmt.Fprint(w, `<div id="auth-status"><a class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-white" href="/login?next=/profile">Sign in</a></div>`)
+        return
+    }
+    name := html.EscapeString(user.Name)
+    fmt.Fprintf(w, `<div id="auth-status" class="flex items-center gap-3 text-sm text-slate-600">
+      <span>Signed in as <span class="font-medium text-slate-900">%s</span></span>
+      <a class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-100" href="/profile">Profile</a>
+      <a class="rounded-lg bg-slate-900 px-3 py-1.5 text-white hover:bg-slate-700" href="/logout">Logout</a>
+    </div>`, name)
 }
 
 {{- end }}
@@ -79,6 +100,24 @@ func (r *Router) home(w http.ResponseWriter, req *http.Request) {
 func (r *Router) health(w http.ResponseWriter, req *http.Request) {
     w.Header().Set("Content-Type", "text/plain; charset=utf-8")
     _, _ = w.Write([]byte("ok"))
+}
+
+// demoEcho handles a sample POST request and echos a value back.
+func (r *Router) demoEcho(w http.ResponseWriter, req *http.Request) {
+    if req.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+    if err := req.ParseForm(); err != nil {
+        http.Error(w, "Bad request", http.StatusBadRequest)
+        return
+    }
+    msg := req.Form.Get("message")
+    if msg == "" {
+        msg = "(empty)"
+    }
+    w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+    _, _ = w.Write([]byte(msg))
 }
 
 {{- if .Stack.HasFeature "frontend-htmx" }}

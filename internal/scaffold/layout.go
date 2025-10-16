@@ -81,4 +81,9 @@ var BaseTemplates = []stacks.Template{
 		Destination: "web/assets/scripts/README.md",
 		Mode:        0o644,
 	},
+	{
+		Source:      "base/public/assets/scripts/csrf.js.tmpl",
+		Destination: "public/assets/scripts/csrf.js",
+		Mode:        0o644,
+	},
 }

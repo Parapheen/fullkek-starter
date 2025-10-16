@@ -1,0 +1,42 @@
+(function () {
+  var CSRF_HEADER = 'X-CSRF-Token';
+  var CSRF_FIELD  = 'csrf_token';
+  var CSRF_COOKIE = 'csrf_token';
+
+  function getCookie(name) {
+    var parts = document.cookie.split('; ');
+    for (var i = 0; i < parts.length; i++) {
+      var row = parts[i];
+      if (row.indexOf(name + '=') === 0) {
+        return decodeURIComponent(row.substring(name.length + 1));
+      }
+    }
+    return '';
+  }
+
+  function token() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.content) return meta.content;
+    return getCookie(CSRF_COOKIE) || '';
+  }
+
+  // HTMX global header
+  document.addEventListener('htmx:configRequest', function (evt) {
+    var t = token(); if (t) evt.detail.headers[CSRF_HEADER] = t;
+  });
+
+  // Regular forms
+  document.addEventListener('submit', function (evt) {
+    var form = evt.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    var method = (form.method || 'GET').toUpperCase();
+    if (method === 'GET') return;
+    if (form.querySelector('input[name="' + CSRF_FIELD + '"]')) return;
+    var t = token(); if (!t) return;
+    var input = document.createElement('input');
+    input.type = 'hidden'; input.name = CSRF_FIELD; input.value = t;
+    form.appendChild(input);
+  }, true);
+})();
+
+

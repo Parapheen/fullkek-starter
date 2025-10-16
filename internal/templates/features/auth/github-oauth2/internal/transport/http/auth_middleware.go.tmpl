@@ -1,10 +1,11 @@
 package http
 
 import (
-    "context"
-    "net/http"
+	"context"
+	"net/http"
+	"net/url"
 
-    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
+	httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
 )
 
 type ctxKey string
@@ -16,14 +17,32 @@ func UserFromContext(ctx context.Context) interface{} { return ctx.Value(userKey
 
 // AuthMiddleware resolves the current user from session cookie and injects into context.
 func (r *Router) AuthMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-        if r.authService == nil { next.ServeHTTP(w, req); return }
-        sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
-        if sid == "" { next.ServeHTTP(w, req); return }
-        user, _ := r.authService.CurrentUser(req.Context(), sid)
-        if user == nil { next.ServeHTTP(w, req); return }
-        next.ServeHTTP(w, req.WithContext(withUser(req.Context(), user)))
-    })
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if r.authService == nil { next.ServeHTTP(w, req); return }
+		sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
+		if sid == "" { next.ServeHTTP(w, req); return }
+		user, _ := r.authService.CurrentUser(req.Context(), sid)
+		if user == nil { next.ServeHTTP(w, req); return }
+		next.ServeHTTP(w, req.WithContext(withUser(req.Context(), user)))
+	})
 }
 
+// RequireAuth enforces authentication and redirects unauthenticated requests to the login page.
+func (r *Router) RequireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if r.authService == nil {
+			http.Error(w, "auth not configured", http.StatusServiceUnavailable)
+			return
+		}
+		sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
+		user, _ := r.authService.CurrentUser(req.Context(), sid)
+		if user == nil {
+			q := url.Values{}
+			q.Set("next", req.URL.RequestURI())
+			http.Redirect(w, req, "/login?"+q.Encode(), http.StatusFound)
+			return
+		}
+		next.ServeHTTP(w, req.WithContext(withUser(req.Context(), user)))
+	})
+}
 

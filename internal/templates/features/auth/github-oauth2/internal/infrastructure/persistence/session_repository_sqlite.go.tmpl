@@ -10,92 +10,128 @@ import (
     domainSession "{{ .ModulePath }}/internal/domain/session"
 )
 
-type SQLiteSessionRepository struct { db *sqlx.DB }
+type SQLiteSessionRepository struct{ db *sqlx.DB }
 
 func NewSQLiteSessionRepository(db *sqlx.DB) *SQLiteSessionRepository { return &SQLiteSessionRepository{db: db} }
 
 func (r *SQLiteSessionRepository) Create(ctx context.Context, s *domainSession.Session) error {
-    _, err := r.db.ExecContext(ctx, `INSERT INTO sessions(id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip) VALUES(?, ?, ?, ?, ?, ?, ?)`,
-        s.ID, s.UserID, s.CreatedAt, s.ExpiresAt, s.LastSeenAt, s.UserAgent, s.ClientIP)
-    return err
+    return insertSession(ctx, r.db, s)
 }
 
 func (r *SQLiteSessionRepository) FindByID(ctx context.Context, id string) (*domainSession.Session, error) {
-    type dbSession struct {
-        ID         string     `db:"id"`
-        UserID     string     `db:"user_id"`
-        CreatedAt  time.Time  `db:"created_at"`
-        ExpiresAt  time.Time  `db:"expires_at"`
-        LastSeenAt time.Time  `db:"last_seen_at"`
-        UserAgent  string     `db:"user_agent"`
-        ClientIP   string     `db:"client_ip"`
-        RevokedAt  *time.Time `db:"revoked_at"`
-    }
-
-    var row dbSession
-    err := r.db.GetContext(ctx, &row, `SELECT id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip, revoked_at FROM sessions WHERE id = ?`, id)
-    if err != nil {
-        if errors.Is(err, sql.ErrNoRows) { return nil, nil }
-        return nil, err
-    }
-    return &domainSession.Session{
-        ID:         row.ID,
-        UserID:     row.UserID,
-        CreatedAt:  row.CreatedAt,
-        ExpiresAt:  row.ExpiresAt,
-        LastSeenAt: row.LastSeenAt,
-        UserAgent:  row.UserAgent,
-        ClientIP:   row.ClientIP,
-        RevokedAt:  row.RevokedAt,
-    }, nil
+    return fetchSession(ctx, r.db, id)
 }
 
 func (r *SQLiteSessionRepository) Touch(ctx context.Context, id string, when time.Time) error {
-    _, err := r.db.ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE id = ?`, when, id)
-    return err
+    return touchSession(ctx, r.db, id, when)
 }
 
 func (r *SQLiteSessionRepository) Revoke(ctx context.Context, id string, when time.Time) error {
-    _, err := r.db.ExecContext(ctx, `UPDATE sessions SET revoked_at = ? WHERE id = ?`, when, id)
-    return err
+    return revokeSession(ctx, r.db, id, when)
 }
 
 func (r *SQLiteSessionRepository) DeleteByUser(ctx context.Context, userID string) error {
-    _, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
-    return err
+    return deleteSessionsByUser(ctx, r.db, userID)
 }
 
 func (r *SQLiteSessionRepository) ListByUser(ctx context.Context, userID string) ([]*domainSession.Session, error) {
-    type dbSession struct {
-        ID         string     `db:"id"`
-        UserID     string     `db:"user_id"`
-        CreatedAt  time.Time  `db:"created_at"`
-        ExpiresAt  time.Time  `db:"expires_at"`
-        LastSeenAt time.Time  `db:"last_seen_at"`
-        UserAgent  string     `db:"user_agent"`
-        ClientIP   string     `db:"client_ip"`
-        RevokedAt  *time.Time `db:"revoked_at"`
-    }
+    return listSessionsByUser(ctx, r.db, userID)
+}
 
-    rows := make([]dbSession, 0)
-    if err := r.db.SelectContext(ctx, &rows, `SELECT id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip, revoked_at FROM sessions WHERE user_id = ? ORDER BY created_at DESC`, userID); err != nil {
+type txSessionRepository struct{ tx *sqlx.Tx }
+
+func newTxSessionRepository(tx *sqlx.Tx) *txSessionRepository { return &txSessionRepository{tx: tx} }
+
+func (r *txSessionRepository) Create(ctx context.Context, s *domainSession.Session) error {
+    return insertSession(ctx, r.tx, s)
+}
+
+func (r *txSessionRepository) FindByID(ctx context.Context, id string) (*domainSession.Session, error) {
+    return fetchSession(ctx, r.tx, id)
+}
+
+func (r *txSessionRepository) Touch(ctx context.Context, id string, when time.Time) error {
+    return touchSession(ctx, r.tx, id, when)
+}
+
+func (r *txSessionRepository) Revoke(ctx context.Context, id string, when time.Time) error {
+    return revokeSession(ctx, r.tx, id, when)
+}
+
+func (r *txSessionRepository) DeleteByUser(ctx context.Context, userID string) error {
+    return deleteSessionsByUser(ctx, r.tx, userID)
+}
+
+func (r *txSessionRepository) ListByUser(ctx context.Context, userID string) ([]*domainSession.Session, error) {
+    return listSessionsByUser(ctx, r.tx, userID)
+}
+
+type dbSession struct {
+    ID         string     `db:"id"`
+    UserID     string     `db:"user_id"`
+    CreatedAt  time.Time  `db:"created_at"`
+    ExpiresAt  time.Time  `db:"expires_at"`
+    LastSeenAt time.Time  `db:"last_seen_at"`
+    UserAgent  string     `db:"user_agent"`
+    ClientIP   string     `db:"client_ip"`
+    RevokedAt  *time.Time `db:"revoked_at"`
+}
+
+func (s dbSession) toDomain() *domainSession.Session {
+    return &domainSession.Session{
+        ID:         s.ID,
+        UserID:     s.UserID,
+        CreatedAt:  s.CreatedAt,
+        ExpiresAt:  s.ExpiresAt,
+        LastSeenAt: s.LastSeenAt,
+        UserAgent:  s.UserAgent,
+        ClientIP:   s.ClientIP,
+        RevokedAt:  s.RevokedAt,
+    }
+}
+
+func fetchSession(ctx context.Context, q sqlx.QueryerContext, id string) (*domainSession.Session, error) {
+    const query = `SELECT id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip, revoked_at FROM sessions WHERE id = ?`
+    var row dbSession
+    if err := sqlx.GetContext(ctx, q, &row, query, id); err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            return nil, nil
+        }
         return nil, err
     }
+    return row.toDomain(), nil
+}
 
+func listSessionsByUser(ctx context.Context, q sqlx.QueryerContext, userID string) ([]*domainSession.Session, error) {
+    const query = `SELECT id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip, revoked_at FROM sessions WHERE user_id = ? ORDER BY created_at DESC`
+    rows := make([]dbSession, 0)
+    if err := sqlx.SelectContext(ctx, q, &rows, query, userID); err != nil {
+        return nil, err
+    }
     out := make([]*domainSession.Session, 0, len(rows))
     for _, row := range rows {
-        out = append(out, &domainSession.Session{
-            ID:         row.ID,
-            UserID:     row.UserID,
-            CreatedAt:  row.CreatedAt,
-            ExpiresAt:  row.ExpiresAt,
-            LastSeenAt: row.LastSeenAt,
-            UserAgent:  row.UserAgent,
-            ClientIP:   row.ClientIP,
-            RevokedAt:  row.RevokedAt,
-        })
+        out = append(out, row.toDomain())
     }
     return out, nil
 }
 
+func insertSession(ctx context.Context, exec sqlx.ExecerContext, s *domainSession.Session) error {
+    _, err := exec.ExecContext(ctx, `INSERT INTO sessions(id, user_id, created_at, expires_at, last_seen_at, user_agent, client_ip) VALUES(?, ?, ?, ?, ?, ?, ?)`,
+        s.ID, s.UserID, s.CreatedAt, s.ExpiresAt, s.LastSeenAt, s.UserAgent, s.ClientIP)
+    return err
+}
 
+func touchSession(ctx context.Context, exec sqlx.ExecerContext, id string, when time.Time) error {
+    _, err := exec.ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE id = ?`, when, id)
+    return err
+}
+
+func revokeSession(ctx context.Context, exec sqlx.ExecerContext, id string, when time.Time) error {
+    _, err := exec.ExecContext(ctx, `UPDATE sessions SET revoked_at = ? WHERE id = ?`, when, id)
+    return err
+}
+
+func deleteSessionsByUser(ctx context.Context, exec sqlx.ExecerContext, userID string) error {
+    _, err := exec.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
+    return err
+}

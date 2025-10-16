@@ -8,6 +8,7 @@ import (
 
     "github.com/go-chi/chi/v5"
     "github.com/go-chi/chi/v5/middleware"
+    "github.com/justinas/nosurf"
 )
 
 // Config controls the HTTP server bootstrap.
@@ -32,8 +33,23 @@ func NewServer(cfg Config) *Server {
     // Add some useful middleware
     chiRouter.Use(middleware.Logger)
     chiRouter.Use(middleware.Recoverer)
+    // CSRF protection for all POST/PUT/PATCH/DELETE requests.
+    chiRouter.Use(func(next http.Handler) http.Handler {
+        csrf := nosurf.New(next)
+        // Align cookie name with templates/scripts expecting 'csrf_token'
+        csrf.SetBaseCookie(http.Cookie{
+            Name:     "csrf_token",
+            Path:     "/",
+            HttpOnly: false, // allow JS to read for HTMX/header injection
+            SameSite: http.SameSiteLaxMode,
+        })
+        return csrf
+    })
     
     router := NewRouter()
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    chiRouter.Use(router.AuthMiddleware)
+    {{- end }}
     router.Mount(chiRouter)
 
     staticHandler := http.FileServer(http.Dir("public"))

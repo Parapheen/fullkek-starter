@@ -5,6 +5,7 @@ import (
     "fmt"
     "net/http"
     "time"
+    "github.com/justinas/nosurf"
 )
 
 // Config controls the HTTP server bootstrap.
@@ -31,7 +32,7 @@ func NewServer(cfg Config) *Server {
     staticDir := http.Dir("public")
     staticHandler := http.FileServer(staticDir)
 
-    handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+    var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
         if req.URL.Path != "/" {
             if file, err := staticDir.Open(req.URL.Path); err == nil {
                 _ = file.Close()
@@ -41,6 +42,20 @@ func NewServer(cfg Config) *Server {
         }
         mux.ServeHTTP(w, req)
     })
+
+    // Wrap with CSRF protection first so downstream handlers see verified requests.
+    csrf := nosurf.New(handler)
+    csrf.SetBaseCookie(http.Cookie{
+        Name:     "csrf_token",
+        Path:     "/",
+        HttpOnly: false,
+        SameSite: http.SameSiteLaxMode,
+    })
+    handler = csrf
+
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    handler = router.AuthMiddleware(handler)
+    {{- end }}
 
     srv := &http.Server{
         Addr:    cfg.Addr,

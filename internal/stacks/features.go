@@ -222,8 +222,7 @@ var featureCatalog = []Feature{
 		Tags:        []string{"auth", "oauth2", "github"},
 		Directories: []string{
 			"db/migrations",
-			"internal/application/auth",
-			"internal/domain/identity",
+			"internal/app/auth",
 			"internal/domain/session",
 			"internal/domain/user",
 			"internal/infrastructure/auth",
@@ -251,6 +250,10 @@ var featureCatalog = []Feature{
 				Source:      "features/auth/github-oauth2/web/templates/pages/profile.html.tmpl",
 				Destination: "web/templates/pages/profile.html",
 			},
+			{
+				Source:      "features/auth/github-oauth2/web/templates/pages/login.html.tmpl",
+				Destination: "web/templates/pages/login.html",
+			},
 			// Domain: user
 			{
 				Source:      "features/auth/github-oauth2/internal/domain/user/model.go.tmpl",
@@ -259,10 +262,6 @@ var featureCatalog = []Feature{
 			{
 				Source:      "features/auth/github-oauth2/internal/domain/user/repository.go.tmpl",
 				Destination: "internal/domain/user/repository.go",
-			},
-			{
-				Source:      "features/auth/github-oauth2/internal/domain/identity/model.go.tmpl",
-				Destination: "internal/domain/identity/model.go",
 			},
 			// Domain: session
 			{
@@ -276,11 +275,11 @@ var featureCatalog = []Feature{
 			// Application
 			{
 				Source:      "features/auth/github-oauth2/internal/application/auth/service.go.tmpl",
-				Destination: "internal/application/auth/service.go",
+				Destination: "internal/app/auth/service.go",
 			},
 			{
 				Source:      "features/auth/github-oauth2/internal/application/auth/ports.go.tmpl",
-				Destination: "internal/application/auth/ports.go",
+				Destination: "internal/app/auth/ports.go",
 			},
 			// Infrastructure: auth provider
 			{
@@ -291,6 +290,10 @@ var featureCatalog = []Feature{
 			{
 				Source:      "features/auth/github-oauth2/internal/infrastructure/persistence/user_repository_sqlite.go.tmpl",
 				Destination: "internal/infrastructure/persistence/user_repository_sqlite.go",
+			},
+			{
+				Source:      "features/auth/github-oauth2/internal/infrastructure/persistence/tx.go.tmpl",
+				Destination: "internal/infrastructure/persistence/tx.go",
 			},
 			// Infrastructure: persistence (session)
 			{

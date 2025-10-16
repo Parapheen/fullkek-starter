@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ .AppName }} - Sign in</title>
+    {{- if .Stack.HasFeature "styling-daisyui" }}
+    <link rel="stylesheet" href="/assets/styles/output.css" />
+    <link rel="stylesheet" href="/assets/styles/custom.css" />
+    <script src="https://cdn.jsdelivr.net/npm/theme-change@2.0.2/index.js" defer></script>
+    {{- if .Stack.HasFeature "frontend-htmx" }}
+    <script src="/assets/scripts/htmx.min.js" defer></script>
+    {{- end }}
+    {{- if .Stack.HasFeature "frontend-fixi" }}
+    <script src="/assets/scripts/fixi.js" defer></script>
+    {{- end }}
+    {{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/basecoat.cdn.min.css" />
+    <link rel="stylesheet" href="/assets/styles/output.css" />
+    <script src="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/js/all.min.js" defer></script>
+    {{- if .Stack.HasFeature "frontend-htmx" }}
+    <script src="/assets/scripts/htmx.min.js" defer></script>
+    {{- end }}
+    {{- if .Stack.HasFeature "frontend-fixi" }}
+    <script src="/assets/scripts/fixi.js" defer></script>
+    {{- end }}
+    {{- else }}
+    <link rel="stylesheet" href="/assets/styles/output.css" />
+    {{- if .Stack.HasFeature "frontend-htmx" }}
+    <script src="/assets/scripts/htmx.min.js" defer></script>
+    {{- end }}
+    {{- if .Stack.HasFeature "frontend-fixi" }}
+    <script src="/assets/scripts/fixi.js" defer></script>
+    {{- end }}
+    {{- end }}
+  </head>
+  {{- if .Stack.HasFeature "styling-daisyui" }}
+  <body class="min-h-screen bg-base-200 text-base-content">
+    <main class="mx-auto flex max-w-md flex-col gap-8 px-6 py-16">
+      <header class="space-y-2 text-center">
+        <h1 class="text-3xl font-black">Sign in</h1>
+        <p class="text-sm opacity-70">Choose a provider to continue</p>
+      </header>
+      <section class="card bg-base-100 shadow-xl">
+        <div class="card-body space-y-3">
+          {{ printf "{{ if .Providers }}" }}
+            {{ printf "{{ range .Providers }}" }}
+              <a class="btn btn-primary w-full" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.NextQuery }}" }}{{ printf "{{ $.NextQuery }}" }}{{ printf "{{ end }}" }}">
+                Continue with {{ printf "{{ .Label }}" }}
+              </a>
+            {{ printf "{{ end }}" }}
+          {{ printf "{{ else }}" }}
+            <div class="alert">No providers configured.</div>
+          {{ printf "{{ end }}" }}
+        </div>
+      </section>
+      {{ printf "{{ if .Next }}" }}
+      <p class="text-center text-xs opacity-70">You will return to {{ printf "{{ .Next }}" }} after signing in.</p>
+      {{ printf "{{ end }}" }}
+    </main>
+    <script src="/assets/scripts/csrf.js" defer></script>
+  </body>
+  {{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <main class="mx-auto flex max-w-lg flex-col gap-8 px-6 py-16">
+      <header class="space-y-3 text-center">
+        <h1 class="text-3xl font-semibold tracking-tight">Sign in</h1>
+        <p class="text-sm text-slate-600">Select a provider to continue to your account.</p>
+      </header>
+      <article class="card w-full">
+        <div class="card-body space-y-3">
+          {{ printf "{{ if .Providers }}" }}
+            {{ printf "{{ range .Providers }}" }}
+              <a class="btn w-full" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.NextQuery }}" }}{{ printf "{{ $.NextQuery }}" }}{{ printf "{{ end }}" }}">
+                Continue with {{ printf "{{ .Label }}" }}
+              </a>
+            {{ printf "{{ end }}" }}
+          {{ printf "{{ else }}" }}
+            <div class="alert alert-info">No providers configured.</div>
+          {{ printf "{{ end }}" }}
+        </div>
+      </article>
+      {{ printf "{{ if .Next }}" }}
+      <p class="text-center text-xs text-slate-500">After sign in you will be redirected to {{ printf "{{ .Next }}" }}.</p>
+      {{ printf "{{ end }}" }}
+    </main>
+    <script src="/assets/scripts/csrf.js" defer></script>
+  </body>
+  {{- else }}
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <main class="mx-auto flex max-w-lg flex-col gap-8 px-6 py-16">
+      <header class="space-y-3 text-center">
+        <h1 class="text-3xl font-semibold">Sign in</h1>
+        <p class="text-sm text-slate-600">Select a provider to continue to your profile.</p>
+      </header>
+      <section class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div class="space-y-3">
+          {{ printf "{{ if .Providers }}" }}
+            {{ printf "{{ range .Providers }}" }}
+              <a class="flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.NextQuery }}" }}{{ printf "{{ $.NextQuery }}" }}{{ printf "{{ end }}" }}">
+                Continue with {{ printf "{{ .Label }}" }}
+              </a>
+            {{ printf "{{ end }}" }}
+          {{ printf "{{ else }}" }}
+            <p class="rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-600">No providers configured.</p>
+          {{ printf "{{ end }}" }}
+        </div>
+      </section>
+      {{ printf "{{ if .Next }}" }}
+      <p class="text-center text-xs text-slate-500">After sign in you will be redirected to {{ printf "{{ .Next }}" }}.</p>
+      {{ printf "{{ end }}" }}
+    </main>
+  </body>
+  {{- end }}
+</html>

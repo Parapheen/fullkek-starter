@@ -6,19 +6,22 @@ import (
     "encoding/hex"
     "fmt"
     "net"
+    "sort"
     "time"
+
+    "github.com/google/uuid"
 
     domainSession "{{ .ModulePath }}/internal/domain/session"
     domainUser "{{ .ModulePath }}/internal/domain/user"
 )
 
 type Service struct {
-    users      UserRepository
-    sessions   SessionRepository
-    providers  map[string]OAuthProvider
+    users           UserRepository
+    sessions        SessionRepository
+    providers       map[string]OAuthProvider
     primaryProvider string
-    clock      Clock
-    sessionTTL time.Duration
+    clock           Clock
+    sessionTTL      time.Duration
 }
 
 func NewService(users UserRepository, sessions SessionRepository, providers []OAuthProvider, clock Clock, sessionTTL time.Duration) *Service {
@@ -80,57 +83,43 @@ func (s *Service) HandleCallback(ctx context.Context, provider, code, state, coo
         return nil, nil, fmt.Errorf("provider %s returned empty subject", p.ID())
     }
 
-    var user *domainUser.User
-    if err := s.users.RunInTx(ctx, func(ctx context.Context, repo UserRepository) error {
-        var findErr error
-        user, findErr = repo.FindByIdentity(ctx, profile.Provider, profile.Subject)
-        if findErr != nil {
-            return fmt.Errorf("find user: %w", findErr)
-        }
-        if user == nil {
-            user = &domainUser.User{
-                ID:        randomToken(16),
-                Name:      profile.Name,
-                Email:     profile.Email,
-                AvatarURL: profile.AvatarURL,
-                CreatedAt: s.clock.Now(),
-            }
-            if user.Name == "" {
-                user.Name = profile.Email
-            }
-            if user.Name == "" {
-                user.Name = fmt.Sprintf("%s:%s", profile.Provider, profile.Subject)
-            }
-            if err := repo.Create(ctx, user); err != nil {
-                return fmt.Errorf("create user: %w", err)
-            }
-            if err := repo.AttachIdentity(ctx, user.ID, profile.Provider, profile.Subject); err != nil {
-                return fmt.Errorf("attach identity: %w", err)
-            }
-            return nil
-        }
-        return maybeUpdateUser(ctx, repo, user, profile)
-    }); err != nil {
-        return nil, nil, err
-    }
-
     if host, _, err := net.SplitHostPort(clientIP); err == nil {
         clientIP = host
     }
+
     now := s.clock.Now()
+    uid, _ := uuid.NewV7()
+    candidate := &domainUser.User{
+        ID:        uid.String(),
+        Name:      profile.Name,
+        Email:     profile.Email,
+        AvatarURL: profile.AvatarURL,
+        CreatedAt: now,
+    }
+    if candidate.Name == "" {
+        candidate.Name = profile.Email
+    }
+    if candidate.Name == "" {
+        candidate.Name = fmt.Sprintf("%s:%s", profile.Provider, profile.Subject)
+    }
+
+    sid, _ := uuid.NewV7()
     sess := &domainSession.Session{
-        ID:         randomToken(16),
-        UserID:     user.ID,
+        ID:         sid.String(),
+        UserID:     candidate.ID,
         CreatedAt:  now,
         ExpiresAt:  now.Add(s.sessionTTL),
         LastSeenAt: now,
         UserAgent:  truncate(userAgent, 255),
         ClientIP:   truncate(clientIP, 45),
     }
-    if err := s.sessions.Create(ctx, sess); err != nil {
-        return nil, nil, fmt.Errorf("create session: %w", err)
+
+    user, createdSession, err := s.users.EnsureUserWithIdentityAndCreateSession(ctx, candidate, profile.Provider, profile.Subject, sess)
+    if err != nil {
+        return nil, nil, fmt.Errorf("ensure user: %w", err)
     }
-    return user, sess, nil
+
+    return user, createdSession, nil
 }
 
 // CurrentUser resolves user by session id and touches session.
@@ -158,6 +147,16 @@ func (s *Service) Logout(ctx context.Context, sessionID string) error {
     return s.sessions.Revoke(ctx, sessionID, s.clock.Now())
 }
 
+// ProviderIDs returns all configured OAuth provider identifiers.
+func (s *Service) ProviderIDs() []string {
+    ids := make([]string, 0, len(s.providers))
+    for id := range s.providers {
+        ids = append(ids, id)
+    }
+    sort.Strings(ids)
+    return ids
+}
+
 // PrimaryProvider returns the first registered provider identifier.
 func (s *Service) PrimaryProvider() string {
     return s.primaryProvider
@@ -176,26 +175,3 @@ func truncate(s string, max int) string {
 type SystemClock struct{}
 
 func (SystemClock) Now() time.Time { return time.Now() }
-
-func maybeUpdateUser(ctx context.Context, repo UserRepository, u *domainUser.User, profile OAuthProfile) error {
-    updated := false
-    if profile.Name != "" && u.Name != profile.Name {
-        u.Name = profile.Name
-        updated = true
-    }
-    if profile.Email != "" && u.Email != profile.Email {
-        u.Email = profile.Email
-        updated = true
-    }
-    if profile.AvatarURL != "" && u.AvatarURL != profile.AvatarURL {
-        u.AvatarURL = profile.AvatarURL
-        updated = true
-    }
-    if !updated {
-        return nil
-    }
-    if err := repo.Update(ctx, u); err != nil {
-        return fmt.Errorf("update user: %w", err)
-    }
-    return nil
-}

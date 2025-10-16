@@ -11,7 +11,7 @@ import (
     "github.com/jmoiron/sqlx"
     persist "{{ .ModulePath }}/internal/infrastructure/persistence"
     {{- end }}
-    appauth "{{ .ModulePath }}/internal/application/auth"
+    appauth "{{ .ModulePath }}/internal/app/auth"
     env "{{ .ModulePath }}/internal/pkg/env"
     httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
     oauthinfra "{{ .ModulePath }}/internal/infrastructure/auth"
@@ -38,16 +38,14 @@ func (r *Router) initOAuth() {
     var users appauth.UserRepository
     var sessions appauth.SessionRepository
     if rDB, ok := any(r).(interface{ DB() *sqlx.DB }); ok && rDB.DB() != nil {
-        users = persist.NewSQLiteUserRepository(rDB.DB())
-        sessions = persist.NewSQLiteSessionRepository(rDB.DB())
+        db := rDB.DB()
+        users = persist.NewSQLiteUserRepository(db)
+        sessions = persist.NewSQLiteSessionRepository(db)
     }
     {{- end }}
 
     {{- if .Stack.HasFeature "database-sqlite" }}
     ttl := httpinfra.SessionTTL()
     r.authService = appauth.NewService(users, sessions, providers, appauth.SystemClock{}, ttl)
-    if len(providers) > 0 {
-        r.authDefaultProvider = providers[0].ID()
-    }
     {{- end }}
 }

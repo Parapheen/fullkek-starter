@@ -3,8 +3,10 @@ package http
 import (
     "fmt"
     "net/http"
+    "net/url"
     "path/filepath"
     "strings"
+    "unicode"
 
     httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
 )
@@ -20,8 +22,12 @@ func (r *Router) authStart(w http.ResponseWriter, req *http.Request) {
         http.NotFound(w, req)
         return
     }
-    state, url := r.authService.StartOAuth(req.Context(), provider)
-    if state == "" || url == "" {
+    next := req.URL.Query().Get("next")
+    if !isSafeNext(next) {
+        next = ""
+    }
+    state, redirectURL := r.authService.StartOAuth(req.Context(), provider)
+    if state == "" || redirectURL == "" {
         http.Error(w, "oauth provider unavailable", http.StatusBadRequest)
         return
     }
@@ -33,7 +39,15 @@ func (r *Router) authStart(w http.ResponseWriter, req *http.Request) {
         SameSite: http.SameSiteLaxMode,
         MaxAge:   300, // 5 minutes
     })
-    http.Redirect(w, req, url, http.StatusFound)
+    http.SetCookie(w, &http.Cookie{
+        Name:     "oauth_next",
+        Value:    url.QueryEscape(next),
+        Path:     "/",
+        HttpOnly: true,
+        SameSite: http.SameSiteLaxMode,
+        MaxAge:   300,
+    })
+    http.Redirect(w, req, redirectURL, http.StatusFound)
 }
 
 // authCallback completes the OAuth flow and stores the user in a server-side session.
@@ -59,8 +73,75 @@ func (r *Router) authCallback(w http.ResponseWriter, req *http.Request) {
         return
     }
     httpinfra.SetCookie(w, httpinfra.SessionCookieName(), sess.ID, sess.ExpiresAt)
-    http.Redirect(w, req, "/profile", http.StatusFound)
+    next := httpinfra.ReadCookie(req, "oauth_next")
+    if next != "" {
+        if decoded, err := url.QueryUnescape(next); err == nil {
+            next = decoded
+        }
+    }
+    http.SetCookie(w, &http.Cookie{Name: "oauth_next", Value: "", Path: "/", MaxAge: -1})
+    dest := "/profile"
+    if isSafeNext(next) {
+        dest = next
+    }
+    http.Redirect(w, req, dest, http.StatusFound)
     _ = user
+}
+
+// login renders the login page listing all configured providers.
+func (r *Router) login(w http.ResponseWriter, req *http.Request) {
+    if r.authService == nil {
+        http.Error(w, "auth not configured", http.StatusServiceUnavailable)
+        return
+    }
+    next := req.URL.Query().Get("next")
+    if !isSafeNext(next) {
+        next = ""
+    }
+    nextQuery := ""
+    if next != "" {
+        nextQuery = "?next=" + url.QueryEscape(next)
+    }
+    providers := r.authService.ProviderIDs()
+    type providerOption struct {
+        ID    string
+        Label string
+    }
+    formatLabel := func(id string) string {
+        cleaned := strings.ReplaceAll(id, "-", " ")
+        cleaned = strings.ReplaceAll(cleaned, "_", " ")
+        fields := strings.Fields(cleaned)
+        if len(fields) == 0 {
+            return id
+        }
+        for i, field := range fields {
+            lower := strings.ToLower(field)
+            runes := []rune(lower)
+            if len(runes) == 0 {
+                continue
+            }
+            runes[0] = unicode.ToUpper(runes[0])
+            fields[i] = string(runes)
+        }
+        return strings.Join(fields, " ")
+    }
+    opts := make([]providerOption, 0, len(providers))
+    for _, id := range providers {
+        opts = append(opts, providerOption{ID: id, Label: formatLabel(id)})
+    }
+    data := struct {
+        Next      string
+        NextQuery string
+        Providers []providerOption
+    }{
+        Next:      next,
+        NextQuery: nextQuery,
+        Providers: opts,
+    }
+    if err := renderTemplate(w, filepath.Join("web", "templates", "pages", "login.html"), data); err != nil {
+        http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
+        return
+    }
 }
 
 // profile renders a protected page with basic user info.
@@ -117,8 +198,21 @@ func providerFromRequest(req *http.Request) string {
 }
 
 func (r *Router) signInPath() string {
-    if r.authDefaultProvider != "" {
-        return "/auth/" + r.authDefaultProvider
+    return "/login"
+}
+
+func isSafeNext(s string) bool {
+    if s == "" {
+        return false
     }
-    return "/auth/github"
+    if strings.Contains(s, "://") {
+        return false
+    }
+    if !strings.HasPrefix(s, "/") {
+        return false
+    }
+    if strings.HasPrefix(s, "//") {
+        return false
+    }
+    return true
 }

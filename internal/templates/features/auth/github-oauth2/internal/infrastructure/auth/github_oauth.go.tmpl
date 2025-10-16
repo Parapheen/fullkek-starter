@@ -6,7 +6,7 @@ import (
     "fmt"
     "net/http"
 
-    appauth "{{ .ModulePath }}/internal/application/auth"
+    appauth "{{ .ModulePath }}/internal/app/auth"
     "golang.org/x/oauth2"
     githuboauth "golang.org/x/oauth2/github"
 )
@@ -78,4 +78,3 @@ func coalesce(values ...string) string {
     }
     return ""
 }
-

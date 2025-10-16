@@ -4,6 +4,8 @@ go 1.24
 
 require github.com/joho/godotenv v1.5.1
 
+require github.com/justinas/nosurf v1.2.0
+
 {{- if .Stack.HasFeature "database-sqlite" }}
 require (
     github.com/jmoiron/sqlx v1.4.0
@@ -14,5 +16,6 @@ require (
 {{- if .Stack.HasFeature "auth-github-oauth2" }}
 require (
     golang.org/x/oauth2 v0.17.0
+    github.com/google/uuid v1.6.0
 )
 {{- end }}
