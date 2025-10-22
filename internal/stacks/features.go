@@ -205,12 +205,12 @@ var featureCatalog = []Feature{
 		Description: "Preconfigured SQLite helper powered by sqlx.",
 		Tags:        []string{"database", "SQLite", "sqlx"},
 		Directories: []string{
-			"internal/infrastructure/sqlite",
+			"internal/infrastructure/persistence",
 		},
 		Templates: []Template{
 			{
-				Source:      "features/database/sqlite/internal/infrastructure/sqlite/sqlite.go.tmpl",
-				Destination: "internal/infrastructure/sqlite/sqlite.go",
+				Source:      "features/database/sqlite/internal/infrastructure/persistence/sqlite.go.tmpl",
+				Destination: "internal/infrastructure/persistence/sqlite.go",
 			},
 		},
 	},
@@ -278,6 +278,10 @@ var featureCatalog = []Feature{
 				Destination: "internal/app/auth/service.go",
 			},
 			{
+				Source:      "features/auth/github-oauth2/internal/application/auth/type.go.tmpl",
+				Destination: "internal/app/auth/type.go",
+			},
+			{
 				Source:      "features/auth/github-oauth2/internal/application/auth/ports.go.tmpl",
 				Destination: "internal/app/auth/ports.go",
 			},
@@ -302,8 +306,8 @@ var featureCatalog = []Feature{
 			},
 			// Infrastructure: http cookie helpers
 			{
-				Source:      "features/auth/github-oauth2/internal/infrastructure/http/cookies.go.tmpl",
-				Destination: "internal/infrastructure/http/cookies.go",
+				Source:      "features/auth/github-oauth2/internal/transport/http/cookies.go.tmpl",
+				Destination: "internal/transport/http/cookies.go",
 			},
 			// Migrations
 			{

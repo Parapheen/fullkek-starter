@@ -16,54 +16,58 @@
     <link rel="stylesheet" href="/assets/styles/output.css" />
     {{- end }}
   </head>
-  <body class="stack-body" data-fx-controller="page">
-    <main class="stack-container">
-      <header class="stack-section">
-        <p class="stack-eyebrow">Fixi.js</p>
-        <h1 class="stack-title">Welcome to {{ .AppName }}</h1>
-        <p class="stack-body-copy">Fixi.js glues declarative controllers to your HTML. Update <code>public/assets/scripts/fixi.js</code> to register controllers.</p>
+  <body data-fx-controller="page">
+    <header>
+      <nav>
+        <a href="/">{{ .AppName }}</a>
         {{- if .Stack.HasFeature "auth-github-oauth2" }}
-        <div id="auth-status"></div>
-        <script>
-          document.addEventListener("DOMContentLoaded", function () {
-            var el = document.getElementById("auth-status");
-            if (!el) {
-              return;
-            }
-            fetch("/fragments/auth/status", { credentials: "include" })
-              .then(function (resp) {
-                return resp.text();
-              })
-              .then(function (html) {
-                el.outerHTML = html;
-              })
-              .catch(function () {});
-          });
-        </script>
+        <div id="auth-status"><a href="/login">Sign in</a></div>
         {{- end }}
-      </header>
-      <section class="stack-section" data-fx-controller="counter">
-        <p class="stack-body-copy">Current count: <span data-fx-target="counter.value">0</span></p>
-        <button class="stack-button" data-fx-action="counter#increment">Increment</button>
+      </nav>
+    </header>
+    <main>
+      <section>
+        <h1>{{ .AppName }}</h1>
+        <p>A batteries-included Go starter kit for building hypermedia-first apps.</p>
+        <div>
+          <a class="github-button" href="https://github.com/Parapheen/fullkek-starter" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star Parapheen/fullkek-starter on GitHub">Star</a>
+          <script async defer src="https://buttons.github.io/buttons.js"></script>
+        </div>
       </section>
-      <section class="stack-section">
-        <h2 class="stack-subtitle">CSRF-protected form demo</h2>
-        <form method="post" action="/demo/echo" class="stack-form">
-          <label class="stack-label" for="message">Message</label>
-          <input id="message" name="message" type="text" class="stack-input" placeholder="Hello world" />
-          <button class="stack-button" type="submit">Submit</button>
-        </form>
-        <p class="stack-body-copy">CSRF token is injected automatically via cookie and a hidden field.</p>
+      <section>
+        <h2>Explore stack documentation</h2>
+        <p>Each link opens the corresponding README in the starter repository.</p>
+        <div class="cards">
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/auth/github-oauth2">Auth · GitHub OAuth2</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/database/sqlite">Database · SQLite</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/chi">HTTP · chi</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/standard">HTTP · standard</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/fixi">Frontend · fixi</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/htmx">Frontend · htmx</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/daisyui">Styling · daisyUI</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind">Styling · Tailwind</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind_basecoat">Styling · Tailwind Basecoat</a>
+        </div>
       </section>
-      <footer class="stack-section">
-        <h2 class="stack-subtitle">Selected features</h2>
-        <ul class="stack-list">
-          {{ range .Stack.Features }}
-          <li class="stack-list-item">{{ .Name }}</li>
-          {{ end }}
-        </ul>
-      </footer>
     </main>
+    <script src="/assets/scripts/csrf.js" defer></script>
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var status = document.getElementById("auth-status");
+        if (!status) {
+          return;
+        }
+        fetch("/fragments/auth/status", { credentials: "include" })
+          .then(function (resp) {
+            return resp.text();
+          })
+          .then(function (html) {
+            status.outerHTML = html;
+          })
+          .catch(function () {});
+      });
+    </script>
+    {{- end }}
   </body>
-  <script src="/assets/scripts/csrf.js" defer></script>
 </html>

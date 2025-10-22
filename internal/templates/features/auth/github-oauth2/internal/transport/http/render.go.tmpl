@@ -1,12 +1,15 @@
 package http
 
 import (
-	"html/template"
-	"net/http"
+    "html/template"
+    "net/http"
+    "path/filepath"
 )
 
 func renderTemplate(w http.ResponseWriter, path string, data any) error {
-	tmpl, err := template.ParseFiles(path)
+    base := filepath.Join("web", "templates", "base.html")
+    navbar := filepath.Join("web", "templates", "navbar.html")
+    tmpl, err := template.ParseFiles(base, navbar, path)
 	if err != nil {
 		return err
 	}

@@ -185,43 +185,71 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 			Value(&force),
 	))
 
-	summary := huh.NewNote().
+	summary := huh.NewNote()
+
+	buildSummary := func() string {
+		trimmedApp := strings.TrimSpace(appName)
+		trimmedModule := strings.TrimSpace(modulePath)
+		destination := scaffoldDestinationPath(workingDir, appName, outputDir)
+		if destination == "" {
+			destination = "(not set)"
+		}
+
+		var lines []string
+		lines = append(lines, "Project Details")
+		lines = append(lines,
+			fmt.Sprintf("  App name    : %s", valueOrPlaceholder(trimmedApp)),
+			fmt.Sprintf("  Module path : %s", valueOrPlaceholder(trimmedModule)),
+			fmt.Sprintf("  Destination : %s", destination),
+			fmt.Sprintf("  Overwrite   : %s", humanizeBool(force)),
+		)
+
+		featureBlocksAdded := false
+		for _, binding := range bindings {
+			if binding.category.ID == stacks.CategoryAuth && !authEnabled() {
+				continue
+			}
+			featureName := strings.TrimSpace(binding.selectedFeatureName())
+			if featureName == "" || featureName == "<none>" {
+				continue
+			}
+
+			categoryName := strings.TrimSpace(binding.category.Name)
+			if categoryName == "" {
+				categoryName = "Other"
+			}
+
+			if !featureBlocksAdded {
+				lines = append(lines, "")
+				lines = append(lines, "Feature selections")
+				featureBlocksAdded = true
+			}
+
+			lines = append(lines, fmt.Sprintf("  %s", categoryName))
+			lines = append(lines, fmt.Sprintf("    %s", featureName))
+			lines = append(lines, "")
+		}
+
+		if featureBlocksAdded {
+			for len(lines) > 0 && lines[len(lines)-1] == "" {
+				lines = lines[:len(lines)-1]
+			}
+		}
+
+		lines = append(lines, "")
+		lines = append(lines, "Press Enter to scaffold or use ← to adjust previous answers.")
+
+		return strings.Join(lines, "\n")
+	}
+
+	var summaryContent string
+	summary = summary.
 		Title("Review configuration").
 		DescriptionFunc(func() string {
-			var b strings.Builder
-			writeLine := func(format string, args ...any) {
-				fmt.Fprintf(&b, format+"\n", args...)
-			}
-
-			trimmedApp := strings.TrimSpace(appName)
-			trimmedModule := strings.TrimSpace(modulePath)
-			destination := scaffoldDestinationPath(workingDir, appName, outputDir)
-			if destination == "" {
-				destination = "(not set)"
-			}
-
-			writeLine("┌ Project Details")
-			writeLine("│ App name    : %s", valueOrPlaceholder(trimmedApp))
-			writeLine("│ Module path : %s", valueOrPlaceholder(trimmedModule))
-			writeLine("│ Destination : %s", destination)
-			writeLine("│ Overwrite   : %s", humanizeBool(force))
-			writeLine("└")
-
-			if len(bindings) > 0 {
-				b.WriteString("\nSelected features:\n")
-				for _, binding := range bindings {
-					if binding.category.ID == stacks.CategoryAuth && !authEnabled() {
-						continue
-					}
-					featureName := binding.selectedFeatureName()
-					if featureName != "" && featureName != "<none>" {
-						writeLine("  • %s → %s", binding.category.Name, featureName)
-					}
-				}
-			}
-
-			b.WriteString("\n✨ Press Enter to scaffold or use ← to adjust previous answers.")
-			return b.String()
+			summaryContent = buildSummary()
+			lineCount := strings.Count(summaryContent, "\n") + 1
+			summary.Height(lineCount + 4)
+			return summaryContent
 		}, struct {
 			AppName    *string
 			ModulePath *string

@@ -72,6 +72,16 @@ var BaseTemplates = []stacks.Template{
 		Mode:        0o644,
 	},
 	{
+		Source:      "base/web/templates/base.html.tmpl",
+		Destination: "web/templates/base.html",
+		Mode:        0o644,
+	},
+	{
+		Source:      "base/web/templates/navbar.html.tmpl",
+		Destination: "web/templates/navbar.html",
+		Mode:        0o644,
+	},
+	{
 		Source:      "base/web/assets/styles/README.md.tmpl",
 		Destination: "web/assets/styles/README.md",
 		Mode:        0o644,

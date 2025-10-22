@@ -38,34 +38,6 @@ func (r *SQLiteSessionRepository) ListByUser(ctx context.Context, userID string)
     return listSessionsByUser(ctx, r.db, userID)
 }
 
-type txSessionRepository struct{ tx *sqlx.Tx }
-
-func newTxSessionRepository(tx *sqlx.Tx) *txSessionRepository { return &txSessionRepository{tx: tx} }
-
-func (r *txSessionRepository) Create(ctx context.Context, s *domainSession.Session) error {
-    return insertSession(ctx, r.tx, s)
-}
-
-func (r *txSessionRepository) FindByID(ctx context.Context, id string) (*domainSession.Session, error) {
-    return fetchSession(ctx, r.tx, id)
-}
-
-func (r *txSessionRepository) Touch(ctx context.Context, id string, when time.Time) error {
-    return touchSession(ctx, r.tx, id, when)
-}
-
-func (r *txSessionRepository) Revoke(ctx context.Context, id string, when time.Time) error {
-    return revokeSession(ctx, r.tx, id, when)
-}
-
-func (r *txSessionRepository) DeleteByUser(ctx context.Context, userID string) error {
-    return deleteSessionsByUser(ctx, r.tx, userID)
-}
-
-func (r *txSessionRepository) ListByUser(ctx context.Context, userID string) ([]*domainSession.Session, error) {
-    return listSessionsByUser(ctx, r.tx, userID)
-}
-
 type dbSession struct {
     ID         string     `db:"id"`
     UserID     string     `db:"user_id"`

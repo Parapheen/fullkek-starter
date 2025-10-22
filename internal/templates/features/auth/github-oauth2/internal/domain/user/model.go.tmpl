@@ -1,22 +1,58 @@
 package user
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
+
+type Clock interface {
+	Now() time.Time
+}
+
+type IDGenerator interface {
+	New() (string, error)
+}
 
 // User represents an authenticated person in the system.
 type User struct {
-    ID        string
-    Email     string
-    Name      string
-    AvatarURL string
-    CreatedAt time.Time
+	ID        string
+	Email     string
+	Name      string
+	AvatarURL string
+	CreatedAt time.Time
 }
 
 // Identity represents an external OAuth identity linked to a user.
 type Identity struct {
-    ID        string
-    UserID    string
-    Provider  string
-    Subject   string
-    CreatedAt time.Time
+	ID        string
+	UserID    string
+	Provider  string
+	Subject   string
+	CreatedAt time.Time
 }
 
+// New constructs a user while applying defaulting rules.
+func New(idGen IDGenerator, clock Clock, name, email, avatarURL, provider, subject string) (*User, error) {
+	id, err := idGen.New()
+	if err != nil {
+		return nil, fmt.Errorf("generate user id: %w", err)
+	}
+
+	resolvedName := name
+	if resolvedName == "" {
+		resolvedName = email
+	}
+	if resolvedName == "" {
+		resolvedName = fmt.Sprintf("%s:%s", provider, subject)
+	}
+
+	now := clock.Now()
+
+	return &User{
+		ID:        id,
+		Email:     email,
+		Name:      resolvedName,
+		AvatarURL: avatarURL,
+		CreatedAt: now,
+	}, nil
+}

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
+	appauth "{{ .ModulePath }}/internal/app/auth"
 )
 
 type ctxKey string
@@ -19,11 +19,11 @@ func UserFromContext(ctx context.Context) interface{} { return ctx.Value(userKey
 func (r *Router) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if r.authService == nil { next.ServeHTTP(w, req); return }
-		sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
+		sid := ReadCookie(req, SessionCookieName())
 		if sid == "" { next.ServeHTTP(w, req); return }
-		user, _ := r.authService.CurrentUser(req.Context(), sid)
-		if user == nil { next.ServeHTTP(w, req); return }
-		next.ServeHTTP(w, req.WithContext(withUser(req.Context(), user)))
+		resp, _ := r.authService.CurrentUser(req.Context(), appauth.CurrentUserRequest{SessionID: sid})
+		if resp.User == nil { next.ServeHTTP(w, req); return }
+		next.ServeHTTP(w, req.WithContext(withUser(req.Context(), resp.User)))
 	})
 }
 
@@ -34,15 +34,14 @@ func (r *Router) RequireAuth(next http.Handler) http.Handler {
 			http.Error(w, "auth not configured", http.StatusServiceUnavailable)
 			return
 		}
-		sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
-		user, _ := r.authService.CurrentUser(req.Context(), sid)
-		if user == nil {
+		sid := ReadCookie(req, SessionCookieName())
+		resp, _ := r.authService.CurrentUser(req.Context(), appauth.CurrentUserRequest{SessionID: sid})
+		if resp.User == nil {
 			q := url.Values{}
 			q.Set("next", req.URL.RequestURI())
 			http.Redirect(w, req, "/login?"+q.Encode(), http.StatusFound)
 			return
 		}
-		next.ServeHTTP(w, req.WithContext(withUser(req.Context(), user)))
+		next.ServeHTTP(w, req.WithContext(withUser(req.Context(), resp.User)))
 	})
 }
-

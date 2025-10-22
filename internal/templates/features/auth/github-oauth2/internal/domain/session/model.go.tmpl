@@ -1,24 +1,68 @@
 package session
 
-import "time"
+import (
+	"fmt"
+	"net"
+	"time"
+)
+
+type Clock interface {
+	Now() time.Time
+}
+
+type IDGenerator interface {
+	New() (string, error)
+}
 
 // Session represents a server-side login session persisted in storage.
 type Session struct {
-    ID         string
-    UserID     string
-    CreatedAt  time.Time
-    ExpiresAt  time.Time
-    LastSeenAt time.Time
-    UserAgent  string
-    ClientIP   string
-    RevokedAt  *time.Time
+	ID         string
+	UserID     string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	LastSeenAt time.Time
+	UserAgent  string
+	ClientIP   string
+	RevokedAt  *time.Time
+}
+
+// New constructs a session while applying normalization and defaults.
+func New(idGen IDGenerator, clock Clock, ttl time.Duration, userID, userAgent, clientIP string) (*Session, error) {
+	id, err := idGen.New()
+	if err != nil {
+		return nil, fmt.Errorf("generate session id: %w", err)
+	}
+
+	if host, _, err := net.SplitHostPort(clientIP); err == nil && host != "" {
+		clientIP = host
+	}
+
+	now := clock.Now()
+
+	return &Session{
+		ID:         id,
+		UserID:     userID,
+		CreatedAt:  now,
+		ExpiresAt:  now.Add(ttl),
+		LastSeenAt: now,
+		UserAgent:  truncate(userAgent, 255),
+		ClientIP:   truncate(clientIP, 45),
+	}, nil
 }
 
 func (s *Session) IsExpired(now time.Time) bool {
-    if s.RevokedAt != nil && s.RevokedAt.Before(now) {
-        return true
-    }
-    return now.After(s.ExpiresAt)
+	if s.RevokedAt != nil && s.RevokedAt.Before(now) {
+		return true
+	}
+	return now.After(s.ExpiresAt)
 }
 
-
+func truncate(value string, max int) string {
+	if len(value) <= max {
+		return value
+	}
+	if max <= 3 {
+		return value[:max]
+	}
+	return value[:max-3] + "..."
+}

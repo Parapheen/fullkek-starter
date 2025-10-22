@@ -1,0 +1,12 @@
+{{- $lb := "{{" -}}
+{{- $rb := "}}" -}}
+{{ printf "%s define \"navbar\" %s\n" $lb $rb }}
+<nav>
+  <a href="/">{{ .AppName }}</a>
+  {{- if .Stack.HasFeature "auth-github-oauth2" }}
+  <div id="auth-status" hx-get="/fragments/auth/status" hx-trigger="load" hx-swap="outerHTML">
+    <a href="/login">Sign in</a>
+  </div>
+  {{- end }}
+</nav>
+{{ printf "%s end %s\n" $lb $rb }}

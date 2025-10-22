@@ -123,7 +123,7 @@ Routes available:
 │   ├── app/            # Application setup and wiring
 {{- if .Stack.HasFeature "database-sqlite" }}
 │   ├── infrastructure/
-│   │   └── sqlite/     # SQLite helper wrapping sqlx
+│   │   └── persistence/ # Persistence helpers wrapping sqlx
 {{- end }}
 │   └── transport/
 │       └── http/       # HTTP server and routing
@@ -144,7 +144,7 @@ Routes available:
 1. Create HTML templates under `web/templates/`
 1. Customize styles in `web/assets/styles/`
 {{- if .Stack.HasFeature "database-sqlite" }}
-1. Review the helpers in `internal/infrastructure/sqlite/sqlite.go`
+1. Review the helpers in `internal/infrastructure/persistence/sqlite.go`
 {{- end }}
 {{if has "Tailwind" .Stack.Tags}}
 1. Use Tailwind utility classes in your templates
@@ -166,12 +166,13 @@ The Makefile automatically detects your OS and architecture and downloads the co
 {{- if .Stack.HasFeature "database-sqlite" }}
 ### SQLite Persistence
 
-The `internal/infrastructure/sqlite` package provides a focused entry point for
-bootstrapping a SQLite database with sqlx. It applies WAL mode, busy timeouts,
-and foreign key enforcement by default, storing data under `data/` (ignored
-by git). Override the DSN or connection pool settings via `sqlite.Config` to fit
-your deployment environment. The driver uses CGO, so ensure the relevant SQLite
-toolchain is available when building or cross-compiling.
+The `internal/infrastructure/persistence` package provides a focused entry point
+for bootstrapping a SQLite database with sqlx. It applies WAL mode, busy
+timeouts, and foreign key enforcement by default, storing data under `data/`
+(ignored by git). Override the DSN or connection pool settings via
+`persistence.Config` to fit your deployment environment. The driver uses CGO,
+so ensure the relevant SQLite toolchain is available when building or
+cross-compiling.
 {{- end }}
 {{if has "Basecoat" .Stack.Tags}}
 ### Basecoat Components

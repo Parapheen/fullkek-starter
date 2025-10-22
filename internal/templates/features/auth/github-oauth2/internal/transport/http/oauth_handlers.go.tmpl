@@ -8,7 +8,7 @@ import (
     "strings"
     "unicode"
 
-    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
+    appauth "{{ .ModulePath }}/internal/app/auth"
 )
 
 // authStart begins the OAuth flow for the requested provider.
@@ -26,14 +26,14 @@ func (r *Router) authStart(w http.ResponseWriter, req *http.Request) {
     if !isSafeNext(next) {
         next = ""
     }
-    state, redirectURL := r.authService.StartOAuth(req.Context(), provider)
-    if state == "" || redirectURL == "" {
+    resp, err := r.authService.StartOAuth(req.Context(), appauth.StartOAuthRequest{Provider: provider})
+    if err != nil || resp.State == "" || resp.RedirectURL == "" {
         http.Error(w, "oauth provider unavailable", http.StatusBadRequest)
         return
     }
     http.SetCookie(w, &http.Cookie{
         Name:     "oauth_state",
-        Value:    state,
+        Value:    resp.State,
         Path:     "/",
         HttpOnly: true,
         SameSite: http.SameSiteLaxMode,
@@ -47,7 +47,7 @@ func (r *Router) authStart(w http.ResponseWriter, req *http.Request) {
         SameSite: http.SameSiteLaxMode,
         MaxAge:   300,
     })
-    http.Redirect(w, req, redirectURL, http.StatusFound)
+    http.Redirect(w, req, resp.RedirectURL, http.StatusFound)
 }
 
 // authCallback completes the OAuth flow and stores the user in a server-side session.
@@ -63,17 +63,28 @@ func (r *Router) authCallback(w http.ResponseWriter, req *http.Request) {
     }
     code := req.URL.Query().Get("code")
     state := req.URL.Query().Get("state")
-    cookieState := httpinfra.ReadCookie(req, "oauth_state")
+    cookieState := ReadCookie(req, "oauth_state")
     ua := req.Header.Get("User-Agent")
     ip := req.RemoteAddr
 
-    user, sess, err := r.authService.HandleCallback(req.Context(), provider, code, state, cookieState, ua, ip)
+    resp, err := r.authService.HandleCallback(req.Context(), appauth.HandleCallbackRequest{
+        Provider:    provider,
+        Code:        code,
+        State:       state,
+        CookieState: cookieState,
+        UserAgent:   ua,
+        ClientIP:    ip,
+    })
     if err != nil {
         http.Error(w, fmt.Sprintf("auth error: %v", err), http.StatusUnauthorized)
         return
     }
-    httpinfra.SetCookie(w, httpinfra.SessionCookieName(), sess.ID, sess.ExpiresAt)
-    next := httpinfra.ReadCookie(req, "oauth_next")
+    if resp.Session == nil {
+        http.Error(w, "auth error: session not created", http.StatusUnauthorized)
+        return
+    }
+    SetCookie(w, SessionCookieName(), resp.Session.ID, resp.Session.ExpiresAt)
+    next := ReadCookie(req, "oauth_next")
     if next != "" {
         if decoded, err := url.QueryUnescape(next); err == nil {
             next = decoded
@@ -85,7 +96,7 @@ func (r *Router) authCallback(w http.ResponseWriter, req *http.Request) {
         dest = next
     }
     http.Redirect(w, req, dest, http.StatusFound)
-    _ = user
+    _ = resp.User
 }
 
 // login renders the login page listing all configured providers.
@@ -125,8 +136,8 @@ func (r *Router) login(w http.ResponseWriter, req *http.Request) {
         }
         return strings.Join(fields, " ")
     }
-    opts := make([]providerOption, 0, len(providers))
-    for _, id := range providers {
+    opts := make([]providerOption, 0, len(providers.IDs))
+    for _, id := range providers.IDs {
         opts = append(opts, providerOption{ID: id, Label: formatLabel(id)})
     }
     data := struct {
@@ -150,9 +161,9 @@ func (r *Router) profile(w http.ResponseWriter, req *http.Request) {
         http.Error(w, "auth not configured", http.StatusServiceUnavailable)
         return
     }
-    sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
-    user, _ := r.authService.CurrentUser(req.Context(), sid)
-    if user == nil {
+    sid := ReadCookie(req, SessionCookieName())
+    current, _ := r.authService.CurrentUser(req.Context(), appauth.CurrentUserRequest{SessionID: sid})
+    if current.User == nil {
         http.Redirect(w, req, r.signInPath(), http.StatusFound)
         return
     }
@@ -163,10 +174,10 @@ func (r *Router) profile(w http.ResponseWriter, req *http.Request) {
         AvatarURL string
         ID        string
     }{
-        Name:      user.Name,
-        Email:     user.Email,
-        AvatarURL: user.AvatarURL,
-        ID:        user.ID,
+        Name:      current.User.Name,
+        Email:     current.User.Email,
+        AvatarURL: current.User.AvatarURL,
+        ID:        current.User.ID,
     }
 
     if err := renderTemplate(w, filepath.Join("web", "templates", "pages", "profile.html"), data); err != nil {
@@ -177,11 +188,11 @@ func (r *Router) profile(w http.ResponseWriter, req *http.Request) {
 
 // logout clears the session.
 func (r *Router) logout(w http.ResponseWriter, req *http.Request) {
-    sid := httpinfra.ReadCookie(req, httpinfra.SessionCookieName())
+    sid := ReadCookie(req, SessionCookieName())
     if r.authService != nil {
-        _ = r.authService.Logout(req.Context(), sid)
+        _, _ = r.authService.Logout(req.Context(), appauth.LogoutRequest{SessionID: sid})
     }
-    httpinfra.ClearCookie(w, httpinfra.SessionCookieName())
+    ClearCookie(w, SessionCookieName())
     http.Redirect(w, req, "/", http.StatusFound)
 }
 

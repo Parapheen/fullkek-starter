@@ -12,45 +12,47 @@
     <link rel="stylesheet" href="/assets/styles/output.css" />
     {{- end }}
   </head>
-  <body class="bg-gray-50 flex flex-col min-h-screen">
-    <main class="flex-grow">
-      <header>
-        <h1 class="text-center">Welcome to {{ .AppName }}</h1>
-        <p>Interact with the server by wiring HTMX routes under internal/transport/http.</p>
+  <body>
+    <header>
+      <nav>
+        <a href="/">{{ .AppName }}</a>
         {{- if .Stack.HasFeature "auth-github-oauth2" }}
-        <div id="auth-status" hx-get="/fragments/auth/status" hx-trigger="load" hx-swap="outerHTML"></div>
+        <div
+          id="auth-status"
+          hx-get="/fragments/auth/status"
+          hx-trigger="load"
+          hx-swap="outerHTML"
+        >
+          <a href="/login">Sign in</a>
+        </div>
         {{- end }}
-      </header>
-      <section class="container mx-auto">
-        <div class="grid gap-6 md:grid-cols-2">
-          <div class="rounded-lg border bg-white p-4">
-            <button class="stack-button" hx-get="/api/counter" hx-target="#examples" hx-swap="innerHTML">
-              Load Counter (HTMX)
-            </button>
-            <div id="examples" class="mt-3">
-              <!-- Render HTMX fragments here -->
-            </div>
-          </div>
-          <div class="rounded-lg border bg-white p-4">
-            <h2 class="font-semibold mb-2">CSRF-protected form demo</h2>
-            <form method="post" action="/demo/echo" class="space-y-3">
-              <label class="block text-sm" for="message">Message</label>
-              <input id="message" name="message" type="text" class="w-full rounded border px-3 py-2" placeholder="Hello world" />
-              <button class="stack-button" type="submit">Submit</button>
-            </form>
-            <p class="text-sm text-slate-600 mt-2">CSRF token is injected automatically via cookie and a hidden field.</p>
-          </div>
+      </nav>
+    </header>
+    <main>
+      <section>
+        <h1>{{ .AppName }}</h1>
+        <p>Build responsive, hypermedia-driven interfaces with HTMX and Go.</p>
+        <div>
+          <a class="github-button" href="https://github.com/Parapheen/fullkek-starter" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star Parapheen/fullkek-starter on GitHub">Star</a>
+          <script async defer src="https://buttons.github.io/buttons.js"></script>
         </div>
       </section>
-      <footer class="flex flex-col items-center justify-center">
-        <h2>Selected features</h2>
-        <ul>
-          {{ range .Stack.Features }}
-          <li>{{ .Name }}</li>
-          {{ end }}
-        </ul>
-      </footer>
+      <section>
+        <h2>Explore stack documentation</h2>
+        <p>Each link opens the corresponding README in the starter repository.</p>
+        <div class="cards">
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/auth/github-oauth2">Auth · GitHub OAuth2</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/database/sqlite">Database · SQLite</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/chi">HTTP · chi</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/standard">HTTP · standard</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/fixi">Frontend · fixi</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/htmx">Frontend · htmx</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/daisyui">Styling · daisyUI</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind">Styling · Tailwind</a>
+          <a href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind_basecoat">Styling · Tailwind Basecoat</a>
+        </div>
+      </section>
     </main>
+    <script src="/assets/scripts/csrf.js" defer></script>
   </body>
-  <script src="/assets/scripts/csrf.js" defer></script>
 </html>

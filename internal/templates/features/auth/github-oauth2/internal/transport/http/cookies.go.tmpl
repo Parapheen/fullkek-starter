@@ -1,14 +1,16 @@
-package httpinfra
+package http
 
 import (
-    "net/http"
+    stdhttp "net/http"
     "os"
     "strconv"
     "time"
 )
 
 func SessionCookieName() string {
-    if v := os.Getenv("SESSION_COOKIE_NAME"); v != "" { return v }
+    if v := os.Getenv("SESSION_COOKIE_NAME"); v != "" {
+        return v
+    }
     return "sid"
 }
 
@@ -21,34 +23,34 @@ func SessionTTL() time.Duration {
     return 30 * 24 * time.Hour
 }
 
-func SetCookie(w http.ResponseWriter, name, value string, expires time.Time) {
-    http.SetCookie(w, &http.Cookie{
+func SetCookie(w stdhttp.ResponseWriter, name, value string, expires time.Time) {
+    stdhttp.SetCookie(w, &stdhttp.Cookie{
         Name:     name,
         Value:    value,
         Path:     "/",
         HttpOnly: true,
-        SameSite: http.SameSiteLaxMode,
+        SameSite: stdhttp.SameSiteLaxMode,
         Expires:  expires,
         Secure:   false,
     })
 }
 
-func ClearCookie(w http.ResponseWriter, name string) {
-    http.SetCookie(w, &http.Cookie{
+func ClearCookie(w stdhttp.ResponseWriter, name string) {
+    stdhttp.SetCookie(w, &stdhttp.Cookie{
         Name:     name,
         Value:    "",
         Path:     "/",
         HttpOnly: true,
-        SameSite: http.SameSiteLaxMode,
+        SameSite: stdhttp.SameSiteLaxMode,
         Expires:  time.Unix(0, 0),
         MaxAge:   -1,
     })
 }
 
-func ReadCookie(req *http.Request, name string) string {
+func ReadCookie(req *stdhttp.Request, name string) string {
     c, err := req.Cookie(name)
-    if err != nil { return "" }
+    if err != nil {
+        return ""
+    }
     return c.Value
 }
-
-

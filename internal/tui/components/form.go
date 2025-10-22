@@ -140,7 +140,7 @@ func NewToggleField(label string, initial bool) ToggleField {
 	ti := textinput.New()
 	ti.CharLimit = 0
 	ti.Prompt = ""
-	ti.SetCursorMode(textinput.CursorHide)
+	ti.Cursor.SetMode(cursor.CursorHide)
 	ti.TextStyle = textStyle
 	ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(blurColor)
 	ti.Width = defaultToggleWidth

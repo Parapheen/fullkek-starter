@@ -15,338 +15,90 @@
     {{- end }}
   </head>
   <body class="min-h-screen bg-base-200 text-base-content">
-    <main class="mx-auto flex max-w-5xl flex-col gap-16 px-6 py-16">
-      <header class="flex flex-col items-center gap-6 text-center">
-        <span class="badge badge-outline badge-accent uppercase tracking-[0.35em]">DaisyUI</span>
-        <h1 class="text-4xl font-black sm:text-5xl">Welcome to {{ .AppName }}</h1>
-        <p class="max-w-2xl text-lg opacity-70">
-          Tailwind's standalone CLI compiles DaisyUI locally—<code class="font-mono text-sm">make go</code> runs the fast install script once and keeps <code class="font-mono text-sm">output.css</code> up to date while you build.
-        </p>
-        <div class="flex flex-wrap justify-center gap-3">
-          <a class="btn btn-primary" href="https://daisyui.com/components" target="_blank" rel="noreferrer">
-            Browse components
-          </a>
-          <a class="btn btn-outline" href="https://daisyui.com/docs/install/standalone/" target="_blank" rel="noreferrer">
-            Standalone docs
-          </a>
-          <button class="btn btn-brand" type="button" data-daisy-toast="Custom button styles are easy—this one comes from custom.css.">
-            Brand toast
-          </button>
-        </div>
+    <header class="border-b border-base-300 bg-base-100">
+      <div class="navbar mx-auto max-w-6xl justify-between px-4">
+        <a class="text-xl font-bold" href="/">{{ .AppName }}</a>
         {{- if .Stack.HasFeature "auth-github-oauth2" }}
-        {{- if .Stack.HasFeature "frontend-htmx" }}
-        <div id="auth-status" hx-get="/fragments/auth/status" hx-trigger="load" hx-swap="outerHTML"></div>
-        {{- else }}
-        <div id="auth-status"></div>
-        <script>
-          document.addEventListener("DOMContentLoaded", function () {
-            var el = document.getElementById("auth-status");
-            if (!el) {
-              return;
-            }
-            fetch("/fragments/auth/status", { credentials: "include" })
-              .then(function (resp) {
-                return resp.text();
-              })
-              .then(function (html) {
-                el.outerHTML = html;
-              })
-              .catch(function () {});
-          });
-        </script>
+        <div id="auth-status" class="flex items-center gap-2" hx-get="/fragments/auth/status" hx-trigger="load" hx-swap="outerHTML">
+          <a class="btn btn-sm btn-primary" href="/login">Sign in</a>
+        </div>
         {{- end }}
-        {{- end }}
-      </header>
-
-      <section class="grid gap-6 md:grid-cols-3">
-        <article class="card bg-base-100 shadow-xl">
-          <div class="card-body space-y-3">
-            <h2 class="card-title">Fast setup</h2>
-            <p class="text-sm opacity-70">
-              A single script grabs the Tailwind CLI binary and DaisyUI plugin under <code class="font-mono text-sm">web/assets/styles</code>. The watcher writes compiled CSS to <code class="font-mono text-sm">public/assets/styles/output.css</code>.
-            </p>
-          </div>
-        </article>
-        <article class="card bg-base-100 shadow-xl">
-          <div class="card-body space-y-3">
-            <h2 class="card-title">Utility-first layout</h2>
-            <p class="text-sm opacity-70">
-              Combine DaisyUI components with Tailwind classes like <code class="font-mono text-sm">grid</code>, <code class="font-mono text-sm">gap-6</code>, and responsive prefixes to compose screens quickly.
-            </p>
-          </div>
-        </article>
-        <article class="card bg-base-100 shadow-xl">
-          <div class="card-body space-y-3">
-            <h2 class="card-title">Progressive enhancement</h2>
-            <p class="text-sm opacity-70">
-              Optional HTMX and Fixi.js hooks are pre-wired. Swap fragments or sprinkle live interactions as your app evolves.
-            </p>
-          </div>
-        </article>
-      </section>
-
-      <section class="grid gap-6 md:grid-cols-2">
-        <article class="card bg-base-100 shadow-xl">
-          <div class="card-body space-y-4">
-            <header>
-              <h2 class="card-title">Component sampler</h2>
-              <p class="text-sm opacity-70">A few DaisyUI building blocks to get moving.</p>
-            </header>
-            <div class="flex flex-wrap gap-2">
-              <span class="badge badge-primary">Primary</span>
-              <span class="badge badge-secondary">Secondary</span>
-              <span class="badge badge-outline">Outline</span>
+      </div>
+    </header>
+    <main>
+      <section class="hero bg-base-200 py-16">
+        <div class="hero-content text-center">
+          <div class="max-w-2xl">
+            <span class="badge badge-outline badge-accent mb-4 uppercase tracking-[0.35em]">DaisyUI</span>
+            <h1 class="text-5xl font-bold">{{ .AppName }}</h1>
+            <p class="py-6 text-lg opacity-80">A batteries-included Go starter. Pick your stacks and ship faster.</p>
+            <div class="flex flex-wrap justify-center gap-3">
+              <a class="btn btn-primary" href="https://github.com/Parapheen/fullkek-starter" target="_blank" rel="noreferrer">
+                View on GitHub
+              </a>
+              <a class="github-button" href="https://github.com/Parapheen/fullkek-starter" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star Parapheen/fullkek-starter on GitHub">Star</a>
             </div>
-            <div class="join join-vertical sm:join-horizontal">
-              <button class="btn btn-primary join-item" type="button">Primary</button>
-              <button class="btn btn-outline join-item" type="button">Outline</button>
-              <button class="btn btn-ghost join-item" type="button">Ghost</button>
-            </div>
-            <label class="form-control w-full max-w-xs">
-              <div class="label">
-                <span class="label-text">Email</span>
-                <span class="label-text-alt">Required</span>
-              </div>
-              <input id="demo-email" type="email" placeholder="jane@example.com" class="input input-bordered" />
-              <div class="label">
-                <span class="label-text-alt">We'll never share your email.</span>
-              </div>
-            </label>
-            <div class="alert alert-success">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-6 w-6 shrink-0 stroke-current">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4" />
-              </svg>
-              <span>Alerts, badges, and buttons work out of the box.</span>
-            </div>
-            <footer class="flex justify-end gap-2">
-              <button class="btn btn-ghost" type="button">Cancel</button>
-              <button class="btn btn-primary" type="button">Save</button>
-            </footer>
-          </div>
-        </article>
-
-        <article class="card bg-base-100 shadow-xl">
-          <div class="card-body space-y-4">
-            <header>
-              <h2 class="card-title">Theme controls</h2>
-              <p class="text-sm opacity-70">Use <code class="font-mono text-sm">data-choose-theme</code> plus the <code class="font-mono text-sm">theme-change</code> helper to toggle palettes.</p>
-            </header>
-            <select class="select select-bordered w-full" data-choose-theme>
-              <option value="">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="cupcake">Cupcake</option>
-              <option value="emerald">Emerald</option>
-              <option value="synthwave">Synthwave</option>
-            </select>
-            <p class="text-sm opacity-70">
-              The helper script listens for changes and updates <code class="font-mono text-sm">data-theme</code> on <code class="font-mono text-sm">html</code>.
-            </p>
-            <div class="mockup-code">
-              <pre data-prefix="$">
-                <code>data-choose-theme="light"</code>
-              </pre>
-              <pre data-prefix="$">
-                <code>data-theme="light"</code>
-              </pre>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      <section class="grid gap-6 md:grid-cols-2">
-        <article class="card bg-base-100 shadow-xl">
-          <div class="card-body space-y-3">
-            <header>
-              <h2 class="card-title">Toast showcase</h2>
-              <p class="text-sm opacity-70">Trigger DaisyUI toasts via HTMX fragments or local events.</p>
-            </header>
-            {{- if .Stack.HasFeature "frontend-htmx" }}
-            <button
-              class="btn btn-outline"
-              hx-trigger="click"
-              hx-get="/fragments/toast/success"
-              hx-target="#toaster"
-              hx-swap="beforeend"
-              type="button"
-            >
-              Toast from backend (HTMX)
-            </button>
-            {{- end }}
-            <button class="btn btn-primary" type="button" data-daisy-toast="Client-side toast triggered locally.">
-              Toast on the spot
-            </button>
-            <p class="text-sm opacity-70">
-              Toasts append to the floating container in the corner. Adjust the markup or animation in your htmx fragment response to match your brand.
-            </p>
-          </div>
-        </article>
-
-        <article class="card bg-base-100 shadow-xl">
-          <div class="card-body space-y-3">
-            <header>
-              <h2 class="card-title">Activity feed</h2>
-              <p class="text-sm opacity-70">Use Tailwind layout utilities to orchestrate DaisyUI components.</p>
-            </header>
-            <ul class="timeline timeline-vertical">
-              <li>
-                <div class="timeline-start timeline-box">Scaffold app</div>
-                <div class="timeline-middle">
-                  <span class="indicator"></span>
-                </div>
-                <div class="timeline-end timeline-box">Run <code class="font-mono text-sm">go run ./cmd/fullkek</code></div>
-              </li>
-              <li>
-                <hr />
-              </li>
-              <li>
-                <div class="timeline-start timeline-box">Style UI</div>
-                <div class="timeline-middle">
-                  <span class="indicator"></span>
-                </div>
-                <div class="timeline-end timeline-box">Mix Tailwind utilities + DaisyUI components</div>
-              </li>
-              <li>
-                <hr />
-              </li>
-              <li>
-                <div class="timeline-start timeline-box">Ship</div>
-                <div class="timeline-middle">
-                  <span class="indicator"></span>
-                </div>
-                <div class="timeline-end timeline-box">Deploy with confidence</div>
-              </li>
-            </ul>
-          </div>
-        </article>
-      </section>
-
-      {{- if .Stack.HasFeature "frontend-htmx" }}
-      <section class="card bg-base-100 shadow-xl">
-        <div class="card-body space-y-4">
-          <h2 class="card-title">HTMX demo</h2>
-          <p class="text-sm opacity-70">
-            Fetch a counter fragment using <code class="font-mono text-sm">hx-get</code> and seamlessly swap it into place—no custom JavaScript required.
-          </p>
-          <button
-            class="btn btn-secondary"
-            hx-get="/api/counter"
-            hx-target="#htmx-counter"
-            hx-swap="innerHTML"
-            type="button"
-          >
-            Load counter
-          </button>
-          <div id="htmx-counter" class="rounded-2xl border border-dashed border-base-300 bg-base-200/60 px-4 py-5 text-sm opacity-80">
-            The counter response will render here.
+            <script async defer src="https://buttons.github.io/buttons.js"></script>
           </div>
         </div>
       </section>
-      {{- end }}
-
-      {{- if .Stack.HasFeature "frontend-fixi" }}
-      <section class="card bg-base-100 shadow-xl">
-        <div class="card-body space-y-4">
-          <h2 class="card-title">Fixi.js demo</h2>
-          <p class="text-sm opacity-70">
-            Fetch the same counter fragment using Fixi controllers. Everything stays declarative in your HTML.
-          </p>
-          <button class="btn btn-accent" fx-action="/api/counter" fx-target="#fixi-counter" type="button">
-            Fetch counter
-          </button>
-          <div id="fixi-counter" class="rounded-2xl border border-dashed border-base-300 bg-base-200/60 px-4 py-5 text-sm opacity-80">
-            Fixi.js content will appear here.
+      <section class="mx-auto max-w-6xl p-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/auth/github-oauth2">
+          <div class="card-body">
+            <h3 class="card-title">Auth · GitHub OAuth2</h3>
+            <p>Integrate authentication flows backed by GitHub OAuth2.</p>
           </div>
-        </div>
+        </a>
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/database/sqlite">
+          <div class="card-body">
+            <h3 class="card-title">Database · SQLite</h3>
+            <p>Embed lightweight persistence with a production-ready SQLite setup.</p>
+          </div>
+        </a>
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/chi">
+          <div class="card-body">
+            <h3 class="card-title">HTTP · chi</h3>
+            <p>Route requests with the composable <code>chi</code> router.</p>
+          </div>
+        </a>
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/standard">
+          <div class="card-body">
+            <h3 class="card-title">HTTP · standard</h3>
+            <p>Lean on Go's standard library for handlers and middleware.</p>
+          </div>
+        </a>
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/fixi">
+          <div class="card-body">
+            <h3 class="card-title">Frontend · fixi</h3>
+            <p>Declarative controllers to sprinkle interactivity in HTML.</p>
+          </div>
+        </a>
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/htmx">
+          <div class="card-body">
+            <h3 class="card-title">Frontend · htmx</h3>
+            <p>Hypermedia-first UIs powered by server-driven fragments.</p>
+          </div>
+        </a>
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/daisyui">
+          <div class="card-body">
+            <h3 class="card-title">Styling · daisyUI</h3>
+            <p>Compose Tailwind-friendly components with theming built in.</p>
+          </div>
+        </a>
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind">
+          <div class="card-body">
+            <h3 class="card-title">Styling · Tailwind</h3>
+            <p>Use Tailwind utilities for precise layout and typography.</p>
+          </div>
+        </a>
+        <a class="card bg-base-100 shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind_basecoat">
+          <div class="card-body">
+            <h3 class="card-title">Styling · Tailwind Basecoat</h3>
+            <p>Start from Basecoat's design tokens layered onto Tailwind.</p>
+          </div>
+        </a>
       </section>
-      {{- end }}
-
-      <section class="card bg-base-100 shadow-xl">
-        <div class="card-body space-y-3">
-          <h2 class="card-title">CSRF-protected form demo</h2>
-          <p class="text-sm opacity-70">Posts to <code class="font-mono text-sm">/demo/echo</code> and echoes the submitted message.</p>
-          <form method="post" action="/demo/echo" class="space-y-3">
-            <label class="form-control w-full max-w-xs">
-              <div class="label"><span class="label-text">Message</span></div>
-              <input id="message" name="message" type="text" placeholder="Hello world" class="input input-bordered" />
-            </label>
-            <button class="btn btn-primary" type="submit">Submit</button>
-          </form>
-          <p class="text-sm opacity-70">CSRF token is injected automatically via cookie and a hidden field.</p>
-        </div>
-      </section>
-
-      <footer class="flex flex-col items-center gap-3 text-center text-sm opacity-60">
-        <p>Generated by fullkek • {{ .AppName }} © 2025</p>
-        <div class="flex flex-wrap justify-center gap-2">
-          {{ range .Stack.Features }}
-          <span class="badge badge-outline">{{ .Name }}</span>
-          {{ end }}
-        </div>
-      </footer>
     </main>
-
-    <div id="toaster" class="toast toast-end toast-bottom"></div>
-
-  <script src="/assets/scripts/csrf.js" defer></script>
-
-      const wireToastDismiss = root => {
-        root.querySelectorAll('[data-daisy-toast-dismiss]').forEach(button => {
-          if (button.dataset.toastDismissBound === 'true') {
-            return;
-          }
-          button.dataset.toastDismissBound = 'true';
-          button.addEventListener('click', () => {
-            const alert = button.closest('.alert');
-            if (!alert) {
-              return;
-            }
-            alert.classList.add('opacity-0');
-            window.setTimeout(() => alert.remove(), 200);
-          });
-        });
-      };
-
-      const pushDaisyToast = (variant, message) => {
-        const toaster = document.getElementById('toaster');
-        if (!toaster) {
-          return;
-        }
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${variant} shadow-lg transition-opacity duration-200`;
-        toast.innerHTML = `
-          <span>${message}</span>
-          <button type="button" class="btn btn-sm btn-ghost" data-daisy-toast-dismiss>Dismiss</button>
-        `;
-        toaster.appendChild(toast);
-        wireToastDismiss(toast);
-        window.setTimeout(() => {
-          toast.classList.add('opacity-0');
-          window.setTimeout(() => toast.remove(), 300);
-        }, 4000);
-      };
-
-      const bindToastButtons = () => {
-        document.querySelectorAll('[data-daisy-toast]').forEach(button => {
-          if (button.dataset.toastBound === 'true') {
-            return;
-          }
-          button.dataset.toastBound = 'true';
-          button.addEventListener('click', () => {
-            const message = button.getAttribute('data-daisy-toast') || 'Toast message';
-            const variant = button.getAttribute('data-daisy-variant') || 'success';
-            pushDaisyToast(variant, message);
-          });
-        });
-      };
-
-      const hydrateToasts = () => {
-        bindToastButtons();
-        wireToastDismiss(document);
-      };
-
-      document.addEventListener('DOMContentLoaded', hydrateToasts);
-      document.addEventListener('htmx:afterSwap', hydrateToasts);
-    </script>
+    
   </body>
 </html>

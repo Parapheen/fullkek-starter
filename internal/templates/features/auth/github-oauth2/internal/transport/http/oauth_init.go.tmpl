@@ -5,7 +5,6 @@ import (
     "encoding/hex"
     "net/http"
     "strings"
-    "time"
 
     {{- if .Stack.HasFeature "database-sqlite" }}
     "github.com/jmoiron/sqlx"
@@ -13,9 +12,7 @@ import (
     {{- end }}
     appauth "{{ .ModulePath }}/internal/app/auth"
     env "{{ .ModulePath }}/internal/pkg/env"
-    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
     oauthinfra "{{ .ModulePath }}/internal/infrastructure/auth"
-    
 )
 
 func randomKey(n int) []byte { b := make([]byte, n); _, _ = rand.Read(b); return b }
@@ -45,7 +42,7 @@ func (r *Router) initOAuth() {
     {{- end }}
 
     {{- if .Stack.HasFeature "database-sqlite" }}
-    ttl := httpinfra.SessionTTL()
+    ttl := SessionTTL()
     r.authService = appauth.NewService(users, sessions, providers, appauth.SystemClock{}, ttl)
     {{- end }}
 }

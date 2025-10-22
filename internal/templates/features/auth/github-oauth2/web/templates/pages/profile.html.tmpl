@@ -1,41 +1,9 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ .AppName }} - Profile</title>
-    {{- if .Stack.HasFeature "styling-daisyui" }}
-    <link rel="stylesheet" href="/assets/styles/output.css" />
-    <link rel="stylesheet" href="/assets/styles/custom.css" />
-    <script src="https://cdn.jsdelivr.net/npm/theme-change@2.0.2/index.js" defer></script>
-    {{- if .Stack.HasFeature "frontend-htmx" }}
-    <script src="/assets/scripts/htmx.min.js" defer></script>
-    {{- end }}
-    {{- if .Stack.HasFeature "frontend-fixi" }}
-    <script src="/assets/scripts/fixi.js" defer></script>
-    {{- end }}
-    {{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/basecoat.cdn.min.css" />
-    <link rel="stylesheet" href="/assets/styles/output.css" />
-    <script src="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.2/dist/js/all.min.js" defer></script>
-    {{- if .Stack.HasFeature "frontend-htmx" }}
-    <script src="/assets/scripts/htmx.min.js" defer></script>
-    {{- end }}
-    {{- if .Stack.HasFeature "frontend-fixi" }}
-    <script src="/assets/scripts/fixi.js" defer></script>
-    {{- end }}
-    {{- else }}
-    <link rel="stylesheet" href="/assets/styles/output.css" />
-    {{- if .Stack.HasFeature "frontend-htmx" }}
-    <script src="/assets/scripts/htmx.min.js" defer></script>
-    {{- end }}
-    {{- if .Stack.HasFeature "frontend-fixi" }}
-    <script src="/assets/scripts/fixi.js" defer></script>
-    {{- end }}
-    {{- end }}
-  </head>
+{{- $lb := "{{" -}}
+{{- $rb := "}}" -}}
+{{ printf "%s define \"title\" %sProfile · %s%s end %s\n" $lb $rb .AppName $lb $rb }}
+{{ printf "%s define \"body_class\" %s" $lb $rb }}{{ if .Stack.HasFeature "styling-daisyui" }}min-h-screen bg-base-200 text-base-content{{ else }}bg-slate-50 text-slate-900{{ end }}{{ printf "%s end %s\n" $lb $rb }}
+{{ printf "%s define \"content\" %s\n" $lb $rb }}
   {{- if .Stack.HasFeature "styling-daisyui" }}
-  <body class="min-h-screen bg-base-200 text-base-content">
     <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
       <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="space-y-2">
@@ -71,25 +39,8 @@
           </div>
         </div>
       </section>
-
-      <section class="card bg-base-100 shadow-xl">
-        <div class="card-body space-y-4">
-          <header>
-            <h2 class="card-title">Theme aware layout</h2>
-            <p class="text-sm opacity-70">DaisyUI uses the site theme tokens, so your profile matches whichever palette is active.</p>
-          </header>
-          <div class="flex flex-wrap items-center gap-3">
-            <span class="badge badge-outline">bg-base-100</span>
-            <span class="badge badge-outline">border-base-300</span>
-            <span class="badge badge-outline">text-base-content</span>
-          </div>
-          <p class="text-sm opacity-70">Switch the theme from the app shell or wire the <code class="font-mono text-xs">data-choose-theme</code> selector into this page—styles update without touching the template.</p>
-        </div>
-      </section>
     </main>
-  </body>
   {{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}
-  <body class="bg-slate-50 text-slate-900">
     <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
       <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="space-y-2">
@@ -123,29 +74,8 @@
           </div>
         </div>
       </article>
-
-      <article class="card w-full">
-        <div class="card-body space-y-4">
-          <header>
-            <h2 class="card-title">Basecoat + Tailwind</h2>
-            <p class="text-sm text-slate-600">Cards, buttons, and badges come from Basecoat while spacing and layout rely on Tailwind utilities.</p>
-          </header>
-          <div class="flex flex-wrap gap-2">
-            <span class="badge">Badge</span>
-            <span class="badge-secondary">Secondary</span>
-            <span class="badge-outline">Outline</span>
-          </div>
-          <footer class="flex flex-wrap gap-2">
-            <button class="btn" type="button">Primary action</button>
-            <button class="btn-outline" type="button">Secondary</button>
-          </footer>
-        </div>
-      </article>
     </main>
-    <script src="/assets/scripts/csrf.js" defer></script>
-  </body>
   {{- else }}
-  <body class="bg-slate-50 text-slate-900">
     <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
       <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="space-y-2">
@@ -177,18 +107,7 @@
           </dl>
         </div>
       </section>
-
-      <section class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm space-y-4">
-        <h2 class="text-2xl font-semibold text-slate-900">Theme-ready layout</h2>
-        <p class="text-sm text-slate-600">Using the Tailwind Slate palette keeps typography and surfaces consistent with the starter landing page.</p>
-        <div class="flex flex-wrap items-center gap-3 text-xs font-medium">
-          <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-slate-600">bg-slate-50</span>
-          <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-slate-600">border-slate-200</span>
-          <span class="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-slate-600">text-slate-900</span>
-        </div>
-      </section>
     </main>
-    <script src="/assets/scripts/csrf.js" defer></script>
-  </body>
   {{- end }}
-</html>
+{{ printf "%s end %s\n" $lb $rb }}
+{{ printf "%s template \"base\" . %s\n" $lb $rb }}

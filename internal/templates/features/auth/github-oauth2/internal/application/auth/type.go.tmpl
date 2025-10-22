@@ -1,0 +1,81 @@
+package auth
+
+import "time"
+
+// StartOAuthRequest represents the data required to initiate an OAuth flow.
+type StartOAuthRequest struct {
+    Provider string
+}
+
+// StartOAuthResponse contains the generated state and redirect URL for an OAuth flow.
+type StartOAuthResponse struct {
+    State       string
+    RedirectURL string
+}
+
+// HandleCallbackRequest wraps the parameters supplied by the OAuth callback handler.
+type HandleCallbackRequest struct {
+    Provider    string
+    Code        string
+    State       string
+    CookieState string
+    UserAgent   string
+    ClientIP    string
+}
+
+// HandleCallbackResponse returns the authenticated user and created session DTOs.
+type HandleCallbackResponse struct {
+    User    *UserDTO
+    Session *SessionDTO
+}
+
+// UserDTO transports user data from the application layer to transports.
+type UserDTO struct {
+    ID        string
+    Email     string
+    Name      string
+    AvatarURL string
+    CreatedAt time.Time
+}
+
+// SessionDTO transports session details from the application layer to transports.
+type SessionDTO struct {
+    ID         string
+    UserID     string
+    CreatedAt  time.Time
+    ExpiresAt  time.Time
+    LastSeenAt time.Time
+    UserAgent  string
+    ClientIP   string
+    RevokedAt  *time.Time
+}
+
+// CurrentUserRequest wraps the data needed to resolve the current user from a session.
+type CurrentUserRequest struct {
+    SessionID string
+}
+
+// CurrentUserResponse contains the resolved user DTO when a session is valid.
+type CurrentUserResponse struct {
+    User *UserDTO
+}
+
+// LogoutRequest wraps the information required to revoke a session.
+type LogoutRequest struct {
+    SessionID string
+}
+
+// LogoutResponse provides the outcome of a logout attempt.
+type LogoutResponse struct {
+    Revoked bool
+}
+
+// ProviderIDsResponse contains the configured OAuth provider identifiers.
+type ProviderIDsResponse struct {
+    IDs []string
+}
+
+// PrimaryProviderResponse exposes the primary OAuth provider identifier.
+type PrimaryProviderResponse struct {
+    ID string
+}

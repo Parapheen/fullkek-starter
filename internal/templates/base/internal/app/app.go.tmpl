@@ -7,19 +7,15 @@ import (
 
     {{- if .Stack.HasFeature "database-sqlite" }}
     "github.com/jmoiron/sqlx"
+    persistence "{{ .ModulePath }}/internal/infrastructure/persistence"
     {{- end }}
     httptransport "{{ .ModulePath }}/internal/transport/http"
     env "{{ .ModulePath }}/internal/pkg/env"
-    {{- if .Stack.HasFeature "database-sqlite" }}
-    sqliteinfra "{{ .ModulePath }}/internal/infrastructure/sqlite"
-    {{- end }}
     {{- if .Stack.HasFeature "auth-github-oauth2" }}
     "strings"
 
     appauth "{{ .ModulePath }}/internal/app/auth"
-    httpinfra "{{ .ModulePath }}/internal/infrastructure/http"
     oauthinfra "{{ .ModulePath }}/internal/infrastructure/auth"
-    persist "{{ .ModulePath }}/internal/infrastructure/persistence"
     {{- end }}
 )
 
@@ -59,13 +55,13 @@ func New(ctx context.Context) (*App, error) {
     {{- if .Stack.HasFeature "database-sqlite" }}
     // initialize db before repositories
     {{- end }}
-    ttl := httpinfra.SessionTTL()
+    ttl := httptransport.SessionTTL()
     // users/sessions repositories assigned after db initialization below
     {{- end }}
 
     {{- if .Stack.HasFeature "database-sqlite" }}
     dsn := env.Required("SQLITE_DSN")
-    db, err := sqliteinfra.Init(ctx, sqliteinfra.Config{DSN: dsn})
+    db, err := persistence.Init(ctx, persistence.Config{DSN: dsn})
     if err != nil {
         return nil, err
     }
@@ -73,8 +69,8 @@ func New(ctx context.Context) (*App, error) {
     fmt.Println("Connected to SQLite database")
 
     {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    users = persist.NewSQLiteUserRepository(db)
-    sessions = persist.NewSQLiteSessionRepository(db)
+    users = persistence.NewSQLiteUserRepository(db)
+    sessions = persistence.NewSQLiteSessionRepository(db)
     authService := appauth.NewService(users, sessions, providers, appauth.SystemClock{}, ttl)
     srv.Router().SetAuthService(authService)
     {{- end }}

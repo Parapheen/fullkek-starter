@@ -27,8 +27,6 @@ var (
 			MarginBottom(1)
 
 	boxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(primaryColor).
 			Padding(1, 2).
 			MarginTop(1).
 			MarginBottom(1)
@@ -50,56 +48,53 @@ var (
 	featureStyle = lipgloss.NewStyle().
 			Foreground(accentColor)
 
-	memeStyle = lipgloss.NewStyle().
-			Foreground(primaryColor).
-			MarginTop(1).
-			MarginBottom(1)
+	bannerLines = []string{
+		"███████╗██╗   ██╗██╗     ██╗     ██╗  ██╗███████╗██╗  ██╗",
+		"██╔════╝██║   ██║██║     ██║     ██║ ██╔╝██╔════╝██║ ██╔╝",
+		"█████╗  ██║   ██║██║     ██║     █████╔╝ █████╗  █████╔╝ ",
+		"██╔══╝  ██║   ██║██║     ██║     ██╔═██╗ ██╔══╝  ██╔═██╗ ",
+		"██║     ╚██████╔╝███████╗███████╗██║  ██╗███████╗██║  ██╗",
+		"╚═╝      ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝",
+	}
+
+	bannerGradient = []lipgloss.Color{
+		lipgloss.Color("#FF5F6D"),
+		lipgloss.Color("#FF7E79"),
+		lipgloss.Color("#FF9E73"),
+		lipgloss.Color("#FFC66F"),
+		lipgloss.Color("#F7E96E"),
+		lipgloss.Color("#D9FF7E"),
+		lipgloss.Color("#7CE8FF"),
+		lipgloss.Color("#5CC2FF"),
+		lipgloss.Color("#4A95FF"),
+		lipgloss.Color("#826CFF"),
+		lipgloss.Color("#B15CFF"),
+		lipgloss.Color("#DF5CFF"),
+	}
+
+	bannerBaseStyle = lipgloss.NewStyle().
+			Bold(true)
+
+	bannerContainerStyle = lipgloss.NewStyle().
+				Background(backgroundColor).
+				Padding(2, 2)
 )
 
-const coolMeme = `
-  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⣿⣿⡿⠿⠛⠛⠛⠛⠛⠛⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⡿⠁⠀⠀  👓  ⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⡇⠀⠀  FULLKEK  ⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⡇⠀⠀  DEPLOY   ⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣤⣀⣀⣤⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
-  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+// RenderBanner returns the styled fullkek header with its gradient applied.
+func RenderBanner() string {
+	styledLines := make([]string, len(bannerLines))
+	for i, line := range bannerLines {
+		color := bannerGradient[i%len(bannerGradient)]
+		styledLines[i] = bannerBaseStyle.Foreground(color).Render(line)
+	}
 
-          IT'S ALIVE! ⚡️ Time to ship! 🚀
-`
+	content := lipgloss.JoinVertical(lipgloss.Left, styledLines...)
+	return bannerContainerStyle.Render(content)
+}
 
 // PrintSuccess renders a beautiful success message with project details and next steps
 func PrintSuccess(out io.Writer, destination string, stack stacks.Stack) {
 	var b strings.Builder
-
-	// Meme
-	// memeText := memeStyle.Render(coolMeme)
-	// b.WriteString(memeText + "\n")
-
-	// Project details box
-	var details strings.Builder
-	details.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("📦 Project:"), valueStyle.Render(destination)))
-	details.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("🏗️  Stack:"), valueStyle.Render(stack.Name)))
-
-	if len(stack.Tags) > 0 {
-		details.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("🏷️  Tags:"), valueStyle.Render(strings.Join(stack.Tags, ", "))))
-	}
-
-	if len(stack.Features) > 0 {
-		details.WriteString(fmt.Sprintf("\n%s\n", labelStyle.Render("✨ Features:")))
-		for _, feature := range stack.Features {
-			details.WriteString(fmt.Sprintf("   %s %s\n", featureStyle.Render("•"), valueStyle.Render(feature.Name)))
-		}
-	}
-
-	boxContent := boxStyle.Render(details.String())
-	b.WriteString(boxContent + "\n")
 
 	// Next steps
 	var steps strings.Builder

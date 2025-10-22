@@ -1,175 +1,204 @@
 package auth
 
 import (
-    "context"
-    "crypto/rand"
-    "encoding/hex"
-    "fmt"
-    "net"
-    "sort"
-    "time"
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
+	"sort"
+	"time"
 
-    "github.com/google/uuid"
+	"github.com/google/uuid"
 
-    domainSession "{{ .ModulePath }}/internal/domain/session"
-    domainUser "{{ .ModulePath }}/internal/domain/user"
+	domainSession "{{ .ModulePath }}/internal/domain/session"
+	domainUser "{{ .ModulePath }}/internal/domain/user"
 )
 
 type Service struct {
-    users           UserRepository
-    sessions        SessionRepository
-    providers       map[string]OAuthProvider
-    primaryProvider string
-    clock           Clock
-    sessionTTL      time.Duration
+	users           UserRepository
+	sessions        SessionRepository
+	providers       map[string]OAuthProvider
+	primaryProvider string
+	clock           Clock
+	sessionTTL      time.Duration
+}
+
+type UUIDV7Generator struct{}
+
+func (UUIDV7Generator) New() (string, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }
 
 func NewService(users UserRepository, sessions SessionRepository, providers []OAuthProvider, clock Clock, sessionTTL time.Duration) *Service {
-    providerMap := make(map[string]OAuthProvider, len(providers))
-    var primary string
-    for _, p := range providers {
-        if p == nil {
-            continue
-        }
-        if _, exists := providerMap[p.ID()]; !exists {
-            providerMap[p.ID()] = p
-        }
-        if primary == "" {
-            primary = p.ID()
-        }
-    }
-    return &Service{users: users, sessions: sessions, providers: providerMap, primaryProvider: primary, clock: clock, sessionTTL: sessionTTL}
+	providerMap := make(map[string]OAuthProvider, len(providers))
+	var primary string
+	for _, p := range providers {
+		if p == nil {
+			continue
+		}
+		if _, exists := providerMap[p.ID()]; !exists {
+			providerMap[p.ID()] = p
+		}
+		if primary == "" {
+			primary = p.ID()
+		}
+	}
+	return &Service{users: users, sessions: sessions, providers: providerMap, primaryProvider: primary, clock: clock, sessionTTL: sessionTTL}
 }
 
 func randomToken(n int) string {
-    b := make([]byte, n)
-    _, _ = rand.Read(b)
-    return hex.EncodeToString(b)
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // StartOAuth generates state and returns provider redirect URL.
-func (s *Service) StartOAuth(ctx context.Context, provider string) (state string, redirectURL string) {
-    _ = ctx
-    p, ok := s.providers[provider]
-    if !ok {
-        return "", ""
-    }
-    state = randomToken(16)
-    redirectURL = p.AuthCodeURL(state)
-    return
+func (s *Service) StartOAuth(ctx context.Context, req StartOAuthRequest) (StartOAuthResponse, error) {
+	_ = ctx
+	resp := StartOAuthResponse{}
+	p, ok := s.providers[req.Provider]
+	if !ok {
+		return resp, fmt.Errorf("unknown oauth provider: %s", req.Provider)
+	}
+	resp.State = randomToken(16)
+	resp.RedirectURL = p.AuthCodeURL(resp.State)
+	return resp, nil
 }
 
 // HandleCallback completes provider flow, links identity, and creates a session.
-func (s *Service) HandleCallback(ctx context.Context, provider, code, state, cookieState, userAgent, clientIP string) (*domainUser.User, *domainSession.Session, error) {
-    if state == "" || state != cookieState {
-        return nil, nil, fmt.Errorf("invalid oauth state")
-    }
-    p, ok := s.providers[provider]
-    if !ok {
-        return nil, nil, fmt.Errorf("unknown oauth provider: %s", provider)
-    }
-    token, err := p.Exchange(ctx, code)
-    if err != nil {
-        return nil, nil, fmt.Errorf("exchange code: %w", err)
-    }
-    profile, err := p.FetchProfile(ctx, token)
-    if err != nil {
-        return nil, nil, fmt.Errorf("fetch profile: %w", err)
-    }
-    if profile.Provider == "" {
-        profile.Provider = p.ID()
-    }
-    if profile.Subject == "" {
-        return nil, nil, fmt.Errorf("provider %s returned empty subject", p.ID())
-    }
+func (s *Service) HandleCallback(ctx context.Context, req HandleCallbackRequest) (HandleCallbackResponse, error) {
+	resp := HandleCallbackResponse{}
+	if req.State == "" || req.State != req.CookieState {
+		return resp, fmt.Errorf("invalid oauth state")
+	}
+	p, ok := s.providers[req.Provider]
+	if !ok {
+		return resp, fmt.Errorf("unknown oauth provider: %s", req.Provider)
+	}
+	token, err := p.Exchange(ctx, req.Code)
+	if err != nil {
+		return resp, fmt.Errorf("exchange code: %w", err)
+	}
+	profile, err := p.FetchProfile(ctx, token)
+	if err != nil {
+		return resp, fmt.Errorf("fetch profile: %w", err)
+	}
+	if profile.Provider == "" {
+		profile.Provider = p.ID()
+	}
+	if profile.Subject == "" {
+		return resp, fmt.Errorf("provider %s returned empty subject", p.ID())
+	}
 
-    if host, _, err := net.SplitHostPort(clientIP); err == nil {
-        clientIP = host
-    }
+	idGen := UUIDV7Generator{}
 
-    now := s.clock.Now()
-    uid, _ := uuid.NewV7()
-    candidate := &domainUser.User{
-        ID:        uid.String(),
-        Name:      profile.Name,
-        Email:     profile.Email,
-        AvatarURL: profile.AvatarURL,
-        CreatedAt: now,
-    }
-    if candidate.Name == "" {
-        candidate.Name = profile.Email
-    }
-    if candidate.Name == "" {
-        candidate.Name = fmt.Sprintf("%s:%s", profile.Provider, profile.Subject)
-    }
+	candidate, err := domainUser.New(idGen, s.clock, profile.Name, profile.Email, profile.AvatarURL, profile.Provider, profile.Subject)
+	if err != nil {
+		return resp, fmt.Errorf("create user: %w", err)
+	}
 
-    sid, _ := uuid.NewV7()
-    sess := &domainSession.Session{
-        ID:         sid.String(),
-        UserID:     candidate.ID,
-        CreatedAt:  now,
-        ExpiresAt:  now.Add(s.sessionTTL),
-        LastSeenAt: now,
-        UserAgent:  truncate(userAgent, 255),
-        ClientIP:   truncate(clientIP, 45),
-    }
+	sess, err := domainSession.New(idGen, s.clock, s.sessionTTL, candidate.ID, req.UserAgent, req.ClientIP)
+	if err != nil {
+		return resp, fmt.Errorf("create session: %w", err)
+	}
 
-    user, createdSession, err := s.users.EnsureUserWithIdentityAndCreateSession(ctx, candidate, profile.Provider, profile.Subject, sess)
-    if err != nil {
-        return nil, nil, fmt.Errorf("ensure user: %w", err)
-    }
+	user, createdSession, err := s.users.EnsureUserWithIdentityAndCreateSession(ctx, candidate, profile.Provider, profile.Subject, sess)
+	if err != nil {
+		return resp, fmt.Errorf("ensure user: %w", err)
+	}
 
-    return user, createdSession, nil
+	resp.User = toUserDTO(user)
+	resp.Session = toSessionDTO(createdSession)
+	return resp, nil
 }
 
 // CurrentUser resolves user by session id and touches session.
-func (s *Service) CurrentUser(ctx context.Context, sessionID string) (*domainUser.User, error) {
-    if sessionID == "" {
-        return nil, nil
-    }
-    sess, err := s.sessions.FindByID(ctx, sessionID)
-    if err != nil || sess == nil {
-        return nil, err
-    }
-    now := s.clock.Now()
-    if sess.IsExpired(now) {
-        return nil, nil
-    }
-    _ = s.sessions.Touch(ctx, sessionID, now)
-    return s.users.FindByID(ctx, sess.UserID)
+func (s *Service) CurrentUser(ctx context.Context, req CurrentUserRequest) (CurrentUserResponse, error) {
+	resp := CurrentUserResponse{}
+	if req.SessionID == "" {
+		return resp, nil
+	}
+	sess, err := s.sessions.FindByID(ctx, req.SessionID)
+	if err != nil || sess == nil {
+		return resp, err
+	}
+	now := s.clock.Now()
+	if sess.IsExpired(now) {
+		return resp, nil
+	}
+	_ = s.sessions.Touch(ctx, req.SessionID, now)
+	user, err := s.users.FindByID(ctx, sess.UserID)
+	if err != nil || user == nil {
+		return resp, err
+	}
+	resp.User = toUserDTO(user)
+	return resp, nil
 }
 
 // Logout revokes the session.
-func (s *Service) Logout(ctx context.Context, sessionID string) error {
-    if sessionID == "" {
-        return nil
-    }
-    return s.sessions.Revoke(ctx, sessionID, s.clock.Now())
+func (s *Service) Logout(ctx context.Context, req LogoutRequest) (LogoutResponse, error) {
+	resp := LogoutResponse{}
+	if req.SessionID == "" {
+		return resp, nil
+	}
+	if err := s.sessions.Revoke(ctx, req.SessionID, s.clock.Now()); err != nil {
+		return resp, err
+	}
+	resp.Revoked = true
+	return resp, nil
 }
 
 // ProviderIDs returns all configured OAuth provider identifiers.
-func (s *Service) ProviderIDs() []string {
-    ids := make([]string, 0, len(s.providers))
-    for id := range s.providers {
-        ids = append(ids, id)
-    }
-    sort.Strings(ids)
-    return ids
+func (s *Service) ProviderIDs() ProviderIDsResponse {
+	ids := make([]string, 0, len(s.providers))
+	for id := range s.providers {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ProviderIDsResponse{IDs: ids}
 }
 
 // PrimaryProvider returns the first registered provider identifier.
-func (s *Service) PrimaryProvider() string {
-    return s.primaryProvider
+func (s *Service) PrimaryProvider() PrimaryProviderResponse {
+	return PrimaryProviderResponse{ID: s.primaryProvider}
 }
 
-func truncate(s string, max int) string {
-    if len(s) <= max {
-        return s
-    }
-    if max <= 3 {
-        return s[:max]
-    }
-    return s[:max-3] + "..."
+func toUserDTO(user *domainUser.User) *UserDTO {
+	if user == nil {
+		return nil
+	}
+	return &UserDTO{
+		ID:        user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		AvatarURL: user.AvatarURL,
+		CreatedAt: user.CreatedAt,
+	}
+}
+
+func toSessionDTO(sess *domainSession.Session) *SessionDTO {
+	if sess == nil {
+		return nil
+	}
+	var revokedAt *time.Time
+	if sess.RevokedAt != nil {
+		t := *sess.RevokedAt
+		revokedAt = &t
+	}
+	return &SessionDTO{
+		ID:         sess.ID,
+		UserID:     sess.UserID,
+		CreatedAt:  sess.CreatedAt,
+		ExpiresAt:  sess.ExpiresAt,
+		LastSeenAt: sess.LastSeenAt,
+		UserAgent:  sess.UserAgent,
+		ClientIP:   sess.ClientIP,
+		RevokedAt:  revokedAt,
+	}
 }
 
 type SystemClock struct{}

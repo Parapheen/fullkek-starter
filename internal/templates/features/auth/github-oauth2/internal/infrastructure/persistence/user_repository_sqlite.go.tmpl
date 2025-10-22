@@ -68,19 +68,21 @@ func (r *SQLiteUserRepository) EnsureUserWithIdentityAndCreateSession(
     var ensuredUser *domainUser.User
     var ensuredSession *domainSession.Session
     err := runInTx(ctx, r.db, func(tx *sqlx.Tx) error {
-        userRepo := newTxUserRepository(tx)
-        sessionRepo := newTxSessionRepository(tx)
+        const query = `SELECT u.id, u.email, u.name, u.avatar_url, u.created_at
+FROM users u
+INNER JOIN user_identities ui ON ui.user_id = u.id
+WHERE ui.provider = ? AND ui.subject = ?`
 
-        existing, err := userRepo.FindByIdentity(ctx, provider, subject)
+        existing, err := fetchUser(ctx, tx, query, provider, subject)
         if err != nil {
             return fmt.Errorf("find user: %w", err)
         }
 
         if existing == nil {
-            if err := userRepo.Create(ctx, candidate); err != nil {
+            if err := insertUser(ctx, tx, candidate); err != nil {
                 return fmt.Errorf("create user: %w", err)
             }
-            if err := userRepo.AttachIdentity(ctx, candidate.ID, provider, subject); err != nil {
+            if err := insertIdentity(ctx, tx, candidate.ID, provider, subject); err != nil {
                 return fmt.Errorf("attach identity: %w", err)
             }
             ensuredUser = candidate
@@ -100,14 +102,14 @@ func (r *SQLiteUserRepository) EnsureUserWithIdentityAndCreateSession(
                 updated = true
             }
             if updated {
-                if err := userRepo.Update(ctx, ensuredUser); err != nil {
+                if err := updateUser(ctx, tx, ensuredUser); err != nil {
                     return fmt.Errorf("update user: %w", err)
                 }
             }
         }
 
         sess.UserID = ensuredUser.ID
-        if err := sessionRepo.Create(ctx, sess); err != nil {
+        if err := insertSession(ctx, tx, sess); err != nil {
             return fmt.Errorf("create session: %w", err)
         }
         ensuredSession = sess
@@ -118,36 +120,6 @@ func (r *SQLiteUserRepository) EnsureUserWithIdentityAndCreateSession(
     }
 
     return ensuredUser, ensuredSession, nil
-}
-
-type txUserRepository struct {
-    tx *sqlx.Tx
-}
-
-func newTxUserRepository(tx *sqlx.Tx) *txUserRepository { return &txUserRepository{tx: tx} }
-
-func (r *txUserRepository) FindByID(ctx context.Context, id string) (*domainUser.User, error) {
-    return fetchUser(ctx, r.tx, `SELECT id, email, name, avatar_url, created_at FROM users WHERE id = ?`, id)
-}
-
-func (r *txUserRepository) FindByIdentity(ctx context.Context, provider, subject string) (*domainUser.User, error) {
-    const query = `SELECT u.id, u.email, u.name, u.avatar_url, u.created_at
-FROM users u
-INNER JOIN user_identities ui ON ui.user_id = u.id
-WHERE ui.provider = ? AND ui.subject = ?`
-    return fetchUser(ctx, r.tx, query, provider, subject)
-}
-
-func (r *txUserRepository) Create(ctx context.Context, u *domainUser.User) error {
-    return insertUser(ctx, r.tx, u)
-}
-
-func (r *txUserRepository) Update(ctx context.Context, u *domainUser.User) error {
-    return updateUser(ctx, r.tx, u)
-}
-
-func (r *txUserRepository) AttachIdentity(ctx context.Context, userID, provider, subject string) error {
-    return insertIdentity(ctx, r.tx, userID, provider, subject)
 }
 
 type dbUser struct {
