@@ -4,9 +4,11 @@ import (
     "html/template"
     "net/http"
     "path/filepath"
+
+    appauth "{{ .ModulePath }}/internal/app/auth"
 )
 
-func renderTemplate(w http.ResponseWriter, path string, data any) error {
+func renderTemplate(w http.ResponseWriter, req *http.Request, path string, data any) error {
     base := filepath.Join("web", "templates", "base.html")
     navbar := filepath.Join("web", "templates", "navbar.html")
     tmpl, err := template.ParseFiles(base, navbar, path)
@@ -14,5 +16,36 @@ func renderTemplate(w http.ResponseWriter, path string, data any) error {
 		return err
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return tmpl.Execute(w, data)
+	return tmpl.ExecuteTemplate(w, filepath.Base(path), newTemplatePayload(req, data))
+}
+
+func renderPage(w http.ResponseWriter, req *http.Request, path string, data any) error {
+    base := filepath.Join("web", "templates", "base.html")
+    navbar := filepath.Join("web", "templates", "navbar.html")
+    tmpl, err := template.ParseFiles(base, navbar, path)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	return tmpl.ExecuteTemplate(w, filepath.Base(path), newTemplatePayload(req, data))
+}
+
+type templatePayload struct {
+    Auth struct {
+        IsAuthenticated bool
+        Name            string
+    }
+    Data any
+}
+
+func newTemplatePayload(req *http.Request, data any) templatePayload {
+    payload := templatePayload{Data: data}
+    if req == nil {
+        return payload
+    }
+    if user, _ := UserFromContext(req.Context()).(*appauth.UserDTO); user != nil {
+        payload.Auth.IsAuthenticated = true
+        payload.Auth.Name = user.Name
+    }
+    return payload
 }

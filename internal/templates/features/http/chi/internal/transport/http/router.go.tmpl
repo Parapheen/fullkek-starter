@@ -9,8 +9,7 @@ import (
 {{- if .Stack.HasFeature "frontend-htmx" }}
     "sync/atomic"
 {{- end }}
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    "html"
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
     appauth "{{ .ModulePath }}/internal/app/auth"
     {{- end }}
 )
@@ -43,7 +42,6 @@ func (r *Router) Mount(router chi.Router) {
     router.Get("/auth/{provider}/callback", r.authCallback)
     router.Get("/logout", r.logout)
     router.Get("/login", r.login)
-    router.Get("/fragments/auth/status", r.authStatus)
     router.With(r.RequireAuth).Get("/profile", r.profile)
     {{- end }}
 
@@ -65,30 +63,17 @@ func (r *Router) SetAuthService(svc *appauth.Service) {
     r.authService = svc
 }
 
-func (r *Router) authStatus(w http.ResponseWriter, req *http.Request) {
-    w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    if r.authService == nil {
-        fmt.Fprint(w, `<div id="auth-status"><a class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-white" href="/login">Sign in</a></div>`)
-        return
-    }
-    sid := ReadCookie(req, SessionCookieName())
-    resp, _ := r.authService.CurrentUser(req.Context(), appauth.CurrentUserRequest{SessionID: sid})
-    if resp.User == nil {
-        fmt.Fprint(w, `<div id="auth-status"><a class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-white" href="/login?next=/profile">Sign in</a></div>`)
-        return
-    }
-    name := html.EscapeString(resp.User.Name)
-    fmt.Fprintf(w, `<div id="auth-status" class="flex items-center gap-3 text-sm text-slate-600">
-      <span>Signed in as <span class="font-medium text-slate-900">%s</span></span>
-      <a class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-100" href="/profile">Profile</a>
-      <a class="rounded-lg bg-slate-900 px-3 py-1.5 text-white hover:bg-slate-700" href="/logout">Logout</a>
-    </div>`, name)
-}
-
 {{- end }}
 
 func (r *Router) home(w http.ResponseWriter, req *http.Request) {
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
+    if err := renderPage(w, req, indexPage, nil); err != nil {
+        http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
+        return
+    }
+{{- else }}
     http.ServeFile(w, req, indexPage)
+{{- end }}
 }
 
 func (r *Router) health(w http.ResponseWriter, req *http.Request) {

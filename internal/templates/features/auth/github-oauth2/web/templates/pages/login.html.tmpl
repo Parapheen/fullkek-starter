@@ -9,17 +9,17 @@
         <h1 class="text-3xl font-black">Sign in</h1>
         <p class="text-sm opacity-70">Choose a provider to continue</p>
       </header>
-      {{ printf "{{ if .Providers }}" }}
-        {{ printf "{{ range .Providers }}" }}
-          <a class="btn btn-primary w-full" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.NextQuery }}" }}{{ printf "{{ $.NextQuery }}" }}{{ printf "{{ end }}" }}">
+      {{ printf "{{ if .Data.Providers }}" }}
+        {{ printf "{{ range .Data.Providers }}" }}
+          <a class="btn btn-primary w-full" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.Data.NextQuery }}" }}{{ printf "{{ $.Data.NextQuery }}" }}{{ printf "{{ end }}" }}">
             Continue with {{ printf "{{ .Label }}" }}
           </a>
         {{ printf "{{ end }}" }}
       {{ printf "{{ else }}" }}
         <div class="alert">No providers configured.</div>
       {{ printf "{{ end }}" }}
-      {{ printf "{{ if .Next }}" }}
-      <p class="text-center text-xs opacity-70">You will return to {{ printf "{{ .Next }}" }} after signing in.</p>
+      {{ printf "{{ if .Data.Next }}" }}
+      <p class="text-center text-xs opacity-70">You will return to {{ printf "{{ .Data.Next }}" }} after signing in.</p>
       {{ printf "{{ end }}" }}
     </main>
   {{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}
@@ -30,9 +30,9 @@
       </header>
       <article class="card w-full">
         <div class="card-body space-y-3">
-          {{ printf "{{ if .Providers }}" }}
-            {{ printf "{{ range .Providers }}" }}
-              <a class="btn w-full" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.NextQuery }}" }}{{ printf "{{ $.NextQuery }}" }}{{ printf "{{ end }}" }}">
+          {{ printf "{{ if .Data.Providers }}" }}
+            {{ printf "{{ range .Data.Providers }}" }}
+              <a class="btn w-full" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.Data.NextQuery }}" }}{{ printf "{{ $.Data.NextQuery }}" }}{{ printf "{{ end }}" }}">
                 Continue with {{ printf "{{ .Label }}" }}
               </a>
             {{ printf "{{ end }}" }}
@@ -41,8 +41,8 @@
           {{ printf "{{ end }}" }}
         </div>
       </article>
-      {{ printf "{{ if .Next }}" }}
-      <p class="text-center text-xs text-slate-500">After sign in you will be redirected to {{ printf "{{ .Next }}" }}.</p>
+      {{ printf "{{ if .Data.Next }}" }}
+      <p class="text-center text-xs text-slate-500">After sign in you will be redirected to {{ printf "{{ .Data.Next }}" }}.</p>
       {{ printf "{{ end }}" }}
     </main>
   {{- else }}
@@ -53,9 +53,9 @@
       </header>
       <section class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div class="space-y-3">
-          {{ printf "{{ if .Providers }}" }}
-            {{ printf "{{ range .Providers }}" }}
-              <a class="flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.NextQuery }}" }}{{ printf "{{ $.NextQuery }}" }}{{ printf "{{ end }}" }}">
+          {{ printf "{{ if .Data.Providers }}" }}
+            {{ printf "{{ range .Data.Providers }}" }}
+              <a class="flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" href="/auth/{{ printf "{{ .ID }}" }}{{ printf "{{ if $.Data.NextQuery }}" }}{{ printf "{{ $.Data.NextQuery }}" }}{{ printf "{{ end }}" }}">
                 Continue with {{ printf "{{ .Label }}" }}
               </a>
             {{ printf "{{ end }}" }}
@@ -64,8 +64,8 @@
           {{ printf "{{ end }}" }}
         </div>
       </section>
-      {{ printf "{{ if .Next }}" }}
-      <p class="text-center text-xs text-slate-500">After sign in you will be redirected to {{ printf "{{ .Next }}" }}.</p>
+      {{ printf "{{ if .Data.Next }}" }}
+      <p class="text-center text-xs text-slate-500">After sign in you will be redirected to {{ printf "{{ .Data.Next }}" }}.</p>
       {{ printf "{{ end }}" }}
     </main>
   {{- end }}

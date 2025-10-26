@@ -55,10 +55,6 @@ var featureCatalog = []Feature{
 		},
 		Templates: []Template{
 			{
-				Source:      "features/frontend/htmx/web/templates/pages/home.html.tmpl",
-				Destination: "web/templates/pages/home.html",
-			},
-			{
 				Source:      "features/frontend/htmx/assets/scripts/htmx.min.js.tmpl",
 				Destination: "public/assets/scripts/htmx.min.js",
 			},
@@ -71,10 +67,6 @@ var featureCatalog = []Feature{
 		Description: "Composable DOM bindings using the Fixi.js micro-library.",
 		Tags:        []string{"Fixi.js"},
 		Templates: []Template{
-			{
-				Source:      "features/frontend/fixi/web/templates/pages/home.html.tmpl",
-				Destination: "web/templates/pages/home.html",
-			},
 			{
 				Source:      "features/frontend/fixi/public/assets/scripts/fixi.js.tmpl",
 				Destination: "public/assets/scripts/fixi.js",

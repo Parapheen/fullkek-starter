@@ -149,7 +149,7 @@ func (r *Router) login(w http.ResponseWriter, req *http.Request) {
         NextQuery: nextQuery,
         Providers: opts,
     }
-    if err := renderTemplate(w, filepath.Join("web", "templates", "pages", "login.html"), data); err != nil {
+    if err := renderTemplate(w, req, filepath.Join("web", "templates", "pages", "login.html"), data); err != nil {
         http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
         return
     }
@@ -180,7 +180,7 @@ func (r *Router) profile(w http.ResponseWriter, req *http.Request) {
         ID:        current.User.ID,
     }
 
-    if err := renderTemplate(w, filepath.Join("web", "templates", "pages", "profile.html"), data); err != nil {
+    if err := renderTemplate(w, req, filepath.Join("web", "templates", "pages", "profile.html"), data); err != nil {
         http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
         return
     }

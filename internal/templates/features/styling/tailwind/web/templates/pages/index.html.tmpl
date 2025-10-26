@@ -1,85 +1,61 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ .AppName }} - Tailwind Starter</title>
-    <link rel="stylesheet" href="/assets/styles/output.css" />
-    {{- if .Stack.HasFeature "frontend-htmx" }}
-    <script src="/assets/scripts/htmx.min.js" defer></script>
-    {{- end }}
-    {{- if .Stack.HasFeature "frontend-fixi" }}
-    <script src="/assets/scripts/fixi.js" defer></script>
-    {{- end }}
-  </head>
-  <body class="bg-slate-50 text-slate-900">
-    <header class="border-b border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-        <a class="text-xl font-semibold text-slate-900" href="/">{{ .AppName }}</a>
-        {{- if .Stack.HasFeature "auth-github-oauth2" }}
-        <div id="auth-status" class="flex items-center gap-3 text-sm" hx-get="/fragments/auth/status" hx-trigger="load" hx-swap="outerHTML">
-          <a class="rounded-lg bg-slate-900 px-3 py-1.5 text-white transition hover:bg-slate-700" href="/login">Sign in</a>
-        </div>
-        {{- end }}
-      </div>
-    </header>
-    <main>
-      <section class="mx-auto max-w-5xl px-4 py-16 text-center">
-        <p class="text-sm font-semibold uppercase tracking-[0.35em] text-sky-600">Tailwind</p>
-        <h1 class="mt-4 text-4xl font-bold sm:text-5xl">{{ .AppName }}</h1>
-        <p class="mt-4 text-lg text-slate-600">A batteries-included Go starter kit for modern, hypermedia-first apps.</p>
-        <div class="mt-8 flex flex-wrap justify-center gap-4">
-          <a class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-5 py-2 text-white font-medium shadow-sm transition hover:bg-sky-700" href="https://github.com/Parapheen/fullkek-starter" target="_blank" rel="noreferrer">
-            View on GitHub
-          </a>
-          <a class="github-button" href="https://github.com/Parapheen/fullkek-starter" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star Parapheen/fullkek-starter on GitHub">Star</a>
-        </div>
-        <script async defer src="https://buttons.github.io/buttons.js"></script>
-      </section>
-      <section class="mx-auto max-w-5xl px-4 pb-16">
-        <h2 class="text-2xl font-semibold text-slate-900">Explore stack documentation</h2>
-        <p class="mt-2 text-slate-600">Dive into individual feature guides directly on GitHub.</p>
-        <div class="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/auth/github-oauth2">
-            <h3 class="text-lg font-semibold text-slate-900">Auth · GitHub OAuth2</h3>
-            <p class="mt-2 text-sm text-slate-600">Integrate GitHub sign-in with session scaffolding.</p>
-          </a>
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/database/sqlite">
-            <h3 class="text-lg font-semibold text-slate-900">Database · SQLite</h3>
-            <p class="mt-2 text-sm text-slate-600">Start with embedded persistence and schema helpers.</p>
-          </a>
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/chi">
-            <h3 class="text-lg font-semibold text-slate-900">HTTP · chi</h3>
-            <p class="mt-2 text-sm text-slate-600">Route requests with the composable chi router.</p>
-          </a>
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/standard">
-            <h3 class="text-lg font-semibold text-slate-900">HTTP · standard</h3>
-            <p class="mt-2 text-sm text-slate-600">Lean on Go's standard library handlers and middleware.</p>
-          </a>
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/fixi">
-            <h3 class="text-lg font-semibold text-slate-900">Frontend · fixi</h3>
-            <p class="mt-2 text-sm text-slate-600">Add declarative controllers with Fixi.js.</p>
-          </a>
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/htmx">
-            <h3 class="text-lg font-semibold text-slate-900">Frontend · htmx</h3>
-            <p class="mt-2 text-sm text-slate-600">Deliver server-driven interactions with HTMX.</p>
-          </a>
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/daisyui">
-            <h3 class="text-lg font-semibold text-slate-900">Styling · daisyUI</h3>
-            <p class="mt-2 text-sm text-slate-600">Use DaisyUI components alongside Tailwind utilities.</p>
-          </a>
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind">
-            <h3 class="text-lg font-semibold text-slate-900">Styling · Tailwind</h3>
-            <p class="mt-2 text-sm text-slate-600">Build layouts with Tailwind's utility-first approach.</p>
-          </a>
-          <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind_basecoat">
-            <h3 class="text-lg font-semibold text-slate-900">Styling · Tailwind Basecoat</h3>
-            <p class="mt-2 text-sm text-slate-600">Combine Tailwind utilities with Basecoat tokens.</p>
-          </a>
-        </div>
-      </section>
-    </main>
-    
-    <script src="/assets/scripts/csrf.js" defer></script>
-  </body>
-</html>
+{{- $lb := "{{" -}}
+{{- $rb := "}}" -}}
+{{ printf "%s define \"title\" %s%s - Tailwind Starter%s end %s\n" $lb $rb .AppName $lb $rb }}
+{{ printf "%s define \"body_class\" %sbg-slate-50 text-slate-900%s end %s\n" $lb $rb $lb $rb }}
+{{ printf "%s define \"content\" %s\n" $lb $rb }}
+  <section class="mx-auto max-w-5xl px-4 py-16 text-center">
+    <p class="text-sm font-semibold uppercase tracking-[0.35em] text-sky-600">Tailwind</p>
+    <h1 class="mt-4 text-4xl font-bold sm:text-5xl">{{ .AppName }}</h1>
+    <p class="mt-4 text-lg text-slate-600">A batteries-included Go starter kit for modern, hypermedia-first apps.</p>
+    <div class="mt-8 flex flex-wrap justify-center gap-4">
+      <a class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-5 py-2 text-white font-medium shadow-sm transition hover:bg-sky-700" href="https://github.com/Parapheen/fullkek-starter" target="_blank" rel="noreferrer">
+        View on GitHub
+      </a>
+      <a class="github-button" href="https://github.com/Parapheen/fullkek-starter" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star Parapheen/fullkek-starter on GitHub">Star</a>
+    </div>
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+  </section>
+  <section class="mx-auto max-w-5xl px-4 pb-16">
+    <h2 class="text-2xl font-semibold text-slate-900">Explore stack documentation</h2>
+    <p class="mt-2 text-slate-600">Dive into individual feature guides directly on GitHub.</p>
+    <div class="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/auth/github-oauth2">
+        <h3 class="text-lg font-semibold text-slate-900">Auth · GitHub OAuth2</h3>
+        <p class="mt-2 text-sm text-slate-600">Integrate GitHub sign-in with session scaffolding.</p>
+      </a>
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/database/sqlite">
+        <h3 class="text-lg font-semibold text-slate-900">Database · SQLite</h3>
+        <p class="mt-2 text-sm text-slate-600">Start with embedded persistence and schema helpers.</p>
+      </a>
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/chi">
+        <h3 class="text-lg font-semibold text-slate-900">HTTP · chi</h3>
+        <p class="mt-2 text-sm text-slate-600">Route requests with the composable chi router.</p>
+      </a>
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/http/standard">
+        <h3 class="text-lg font-semibold text-slate-900">HTTP · standard</h3>
+        <p class="mt-2 text-sm text-slate-600">Lean on Go's standard library handlers and middleware.</p>
+      </a>
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/fixi">
+        <h3 class="text-lg font-semibold text-slate-900">Frontend · fixi</h3>
+        <p class="mt-2 text-sm text-slate-600">Add declarative controllers with Fixi.js.</p>
+      </a>
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/frontend/htmx">
+        <h3 class="text-lg font-semibold text-slate-900">Frontend · htmx</h3>
+        <p class="mt-2 text-sm text-slate-600">Deliver server-driven interactions with HTMX.</p>
+      </a>
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/daisyui">
+        <h3 class="text-lg font-semibold text-slate-900">Styling · daisyUI</h3>
+        <p class="mt-2 text-sm text-slate-600">Use DaisyUI components alongside Tailwind utilities.</p>
+      </a>
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind">
+        <h3 class="text-lg font-semibold text-slate-900">Styling · Tailwind</h3>
+        <p class="mt-2 text-sm text-slate-600">Build layouts with Tailwind's utility-first approach.</p>
+      </a>
+      <a class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow" href="https://github.com/Parapheen/fullkek-starter/tree/master/internal/templates/features/styling/tailwind_basecoat">
+        <h3 class="text-lg font-semibold text-slate-900">Styling · Tailwind Basecoat</h3>
+        <p class="mt-2 text-sm text-slate-600">Combine Tailwind utilities with Basecoat tokens.</p>
+      </a>
+    </div>
+  </section>
+{{ printf "%s end %s\n" $lb $rb }}
+{{ printf "%s template \"base\" . %s\n" $lb $rb }}

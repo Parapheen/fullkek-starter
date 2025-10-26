@@ -1,12 +1,56 @@
 {{- $lb := "{{" -}}
 {{- $rb := "}}" -}}
 {{ printf "%s define \"navbar\" %s\n" $lb $rb }}
-<nav>
-  <a href="/">{{ .AppName }}</a>
-  {{- if .Stack.HasFeature "auth-github-oauth2" }}
-  <div id="auth-status" hx-get="/fragments/auth/status" hx-trigger="load" hx-swap="outerHTML">
-    <a href="/login">Sign in</a>
+{{- if .Stack.HasFeature "styling-daisyui" }}
+<nav class="border-b border-base-300 bg-base-100">
+  <div class="navbar mx-auto w-full max-w-5xl justify-between px-4">
+    <a class="text-xl font-bold" href="/">{{ .AppName }}</a>
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    <div class="flex items-center gap-2 text-sm">
+      {{ printf "{{ if .Auth.IsAuthenticated }}" }}
+        <span class="opacity-75">Signed in as <span class="font-semibold text-base-content">{{ printf "{{ .Auth.Name }}" }}</span></span>
+        <a class="btn btn-sm btn-ghost" href="/profile">Profile</a>
+        <a class="btn btn-sm btn-primary" href="/logout">Logout</a>
+      {{ printf "{{ else }}" }}
+        <a class="btn btn-sm btn-primary" href="/login">Sign in</a>
+      {{ printf "{{ end }}" }}
+    </div>
+    {{- end }}
   </div>
-  {{- end }}
 </nav>
+{{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}
+<nav class="border-b border-slate-200 bg-white">
+  <div class="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4">
+    <a class="text-xl font-semibold text-slate-900" href="/">{{ .AppName }}</a>
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    <div class="flex items-center gap-3 text-sm text-slate-600">
+      {{ printf "{{ if .Auth.IsAuthenticated }}" }}
+        <span>Signed in as <span class="font-semibold text-slate-900">{{ printf "{{ .Auth.Name }}" }}</span></span>
+        <a class="btn btn-ghost" href="/profile">Profile</a>
+        <a class="btn" href="/logout">Logout</a>
+      {{ printf "{{ else }}" }}
+        <a class="btn" href="/login">Sign in</a>
+      {{ printf "{{ end }}" }}
+    </div>
+    {{- end }}
+  </div>
+</nav>
+{{- else }}
+<nav class="border-b border-slate-200 bg-white">
+  <div class="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4" style="gap:1rem;flex-wrap:wrap;align-items:center;display:flex;justify-content:space-between">
+    <a class="text-xl font-semibold text-slate-900" href="/">{{ .AppName }}</a>
+    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    <div class="flex items-center gap-3 text-sm text-slate-600" style="display:flex;align-items:center;gap:0.75rem">
+      {{ printf "{{ if .Auth.IsAuthenticated }}" }}
+        <span>Signed in as <span class="font-medium text-slate-900">{{ printf "{{ .Auth.Name }}" }}</span></span>
+        <a class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-100" href="/profile">Profile</a>
+        <a class="rounded-lg bg-slate-900 px-3 py-1.5 text-white hover:bg-slate-700" href="/logout">Logout</a>
+      {{ printf "{{ else }}" }}
+        <a class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-white" href="/login">Sign in</a>
+      {{ printf "{{ end }}" }}
+    </div>
+    {{- end }}
+  </div>
+</nav>
+{{- end }}
 {{ printf "%s end %s\n" $lb $rb }}
