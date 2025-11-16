@@ -2,7 +2,7 @@ package http
 
 import (
     "context"
-    "fmt"
+    "log/slog"
 )
 
 // Config controls the HTTP server bootstrap.
@@ -31,8 +31,8 @@ func NewServer(cfg Config) *Server {
 // Listen starts the HTTP transport. Replace the body with a real HTTP server
 // implementation (chi, net/http, etc.).
 func (s *Server) Listen(ctx context.Context) error {
-    fmt.Printf("HTTP server configured on %s (not yet serving).\n", s.cfg.Addr)
-    fmt.Println("TODO: replace Server.Listen with real HTTP server bootstrap.")
+    slog.Info("HTTP server configured", "addr", s.cfg.Addr, "serving", false)
+    slog.Info("TODO: replace Server.Listen with real HTTP server bootstrap")
     return nil
 }
 

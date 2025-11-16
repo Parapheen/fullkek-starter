@@ -2,22 +2,29 @@ package main
 
 import (
     "context"
-    "log"
+    "log/slog"
+    "os"
+
     _ "github.com/joho/godotenv/autoload"
 
     "{{ .ModulePath }}/internal/app"
 )
 
 func main() {
+    logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+    slog.SetDefault(logger)
+
     ctx := context.Background()
 
     application, err := app.New(ctx)
     if err != nil {
-        log.Fatal(err)
+        slog.Error("initialize app", "err", err)
+        os.Exit(1)
     }
 
     if err := application.Run(ctx); err != nil {
-        log.Fatal(err)
+        slog.Error("run app", "err", err)
+        os.Exit(1)
     }
 }
 

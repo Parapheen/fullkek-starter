@@ -2,7 +2,7 @@ package app
 
 import (
     "context"
-    "fmt"
+    "log/slog"
     "os"
 
     {{- if .Stack.HasFeature "database-sqlite" }}
@@ -66,7 +66,7 @@ func New(ctx context.Context) (*App, error) {
         return nil, err
     }
 
-    fmt.Println("Connected to SQLite database")
+    slog.Info("Connected to SQLite database")
 
     {{- if .Stack.HasFeature "auth-github-oauth2" }}
     users = persistence.NewSQLiteUserRepository(db)
@@ -86,7 +86,7 @@ func New(ctx context.Context) (*App, error) {
 
 // Run starts the HTTP server.
 func (a *App) Run(ctx context.Context) error {
-    fmt.Println("Starting {{ .AppName }}...")
+    slog.Info("Starting {{ .AppName }}...")
     {{- if .Stack.HasFeature "database-sqlite" }}
     defer a.closeDatabase()
     {{- end }}
@@ -99,7 +99,7 @@ func (a *App) closeDatabase() {
         return
     }
     if err := a.db.Close(); err != nil {
-        fmt.Printf("error closing SQLite connection: %v\n", err)
+        slog.Error("close SQLite connection", "err", err)
     }
 }
 {{- end }}

@@ -3,12 +3,14 @@
 {{ printf "%s define \"navbar\" %s\n" $lb $rb }}
 {{- if .Stack.HasFeature "styling-daisyui" }}
 <nav class="border-b border-base-300 bg-base-100">
-  <div class="navbar mx-auto w-full max-w-5xl justify-between px-4">
-    <a class="text-xl font-bold" href="/">{{ .AppName }}</a>
+  <div class="navbar mx-auto w-full max-w-5xl px-4">
+    <div class="navbar-start">
+      <a class="btn btn-ghost text-xl font-bold normal-case" href="/">{{ .AppName }}</a>
+    </div>
     {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    <div class="flex items-center gap-2 text-sm">
+    <div class="navbar-end flex items-center gap-2 text-sm">
       {{ printf "{{ if .Auth.IsAuthenticated }}" }}
-        <span class="opacity-75">Signed in as <span class="font-semibold text-base-content">{{ printf "{{ .Auth.Name }}" }}</span></span>
+        <span class="hidden text-sm opacity-70 sm:inline">Signed in as <span class="font-semibold text-base-content">{{ printf "{{ .Auth.Name }}" }}</span></span>
         <a class="btn btn-sm btn-ghost" href="/profile">Profile</a>
         <a class="btn btn-sm btn-primary" href="/logout">Logout</a>
       {{ printf "{{ else }}" }}

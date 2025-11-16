@@ -74,7 +74,6 @@ If `--no-ui` is used and `[app-name]` is omitted, the command will error. Withou
 - Frontend runtime:
 
   - `frontend-htmx`: HTMX request/response swaps
-  - `frontend-fixi`: Fixi.js micro-library bindings
 
 - Styling system:
 
@@ -86,6 +85,11 @@ If `--no-ui` is used and `[app-name]` is omitted, the command will error. Withou
 
   - `http-standard`: Go net/http ServeMux with HTML response
   - `http-chi`: chi router with starter endpoints
+
+- Authentication (optional):
+
+  - `auth-none`: Skip OAuth providers
+  - `auth-github-oauth2`: GitHub OAuth2 login flow
 
 ## License
 

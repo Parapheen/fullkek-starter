@@ -11,6 +11,26 @@ router.Get("/fragments/toast/success", r.toastSuccess)
 
 func (r *Router) htmxCounter(w http.ResponseWriter, req *http.Request) {
     w.Header().Set("Content-Type", "text/html")
+{{- if has "DaisyUI" .Stack.Tags }}
+    fmt.Fprintf(w, `<div class="card bg-base-100 shadow-xl">
+    <div class="card-body gap-4">
+        <header class="flex items-start justify-between gap-3">
+            <section>
+                <h3 class="card-title text-lg">Server counter</h3>
+                <p class="text-sm opacity-70">Rendered via HTMX.</p>
+            </section>
+            <span class="badge badge-outline badge-primary uppercase tracking-[0.2em]">HTMX</span>
+        </header>
+        <section class="space-y-1">
+            <p class="text-sm opacity-70">Current value</p>
+            <span id="count" class="text-3xl font-black">0</span>
+        </section>
+        <div class="card-actions justify-end">
+            <button class="btn btn-primary" hx-post="/api/increment" hx-target="#count" hx-swap="innerHTML">Increment</button>
+        </div>
+    </div>
+</div>`)
+{{- else }}
     fmt.Fprintf(w, `<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
     <header class="space-y-1">
         <h3 class="text-base font-semibold text-slate-900">Server counter</h3>
@@ -24,6 +44,7 @@ func (r *Router) htmxCounter(w http.ResponseWriter, req *http.Request) {
         Increment
     </button>
 </div>`)
+{{- end }}
 }
 
 func (r *Router) htmxIncrement(w http.ResponseWriter, req *http.Request) {
@@ -40,11 +61,19 @@ func (r *Router) htmxTodoList(w http.ResponseWriter, req *http.Request) {
         "Deploy your app",
     }
 
+{{- if has "DaisyUI" .Stack.Tags }}
+    html := `<div class="card bg-base-100 shadow-xl"><div class="card-body gap-4"><header class="space-y-1"><h3 class="card-title text-lg">Todo list</h3><p class="text-sm opacity-70">Loaded from the server using HTMX.</p></header><ul class="space-y-2 text-sm">`
+    for _, todo := range todos {
+        html += fmt.Sprintf(`<li class="rounded-xl bg-base-200/60 px-4 py-2">%s</li>`, todo)
+    }
+    html += `</ul></div></div>`
+{{- else }}
     html := `<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4"><header class="space-y-1"><h3 class="text-base font-semibold text-slate-900">Todo list</h3><p class="text-sm text-slate-600">Loaded from the server using HTMX.</p></header><ul class="space-y-2">`
     for _, todo := range todos {
         html += fmt.Sprintf(`<li class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">%s</li>`, todo)
     }
     html += `</ul></div>`
+{{- end }}
 
     fmt.Fprint(w, html)
 }
@@ -61,6 +90,26 @@ mux.HandleFunc("/fragments/toast/success", r.toastSuccess)
 
 func (r *Router) htmxCounter(w http.ResponseWriter, req *http.Request) {
     w.Header().Set("Content-Type", "text/html")
+{{- if has "DaisyUI" .Stack.Tags }}
+    fmt.Fprintf(w, `<div class="card bg-base-100 shadow-xl">
+    <div class="card-body gap-4">
+        <header class="flex items-start justify-between gap-3">
+            <section>
+                <h3 class="card-title text-lg">Server counter</h3>
+                <p class="text-sm opacity-70">Rendered via HTMX.</p>
+            </section>
+            <span class="badge badge-outline badge-primary uppercase tracking-[0.2em]">HTMX</span>
+        </header>
+        <section class="space-y-1">
+            <p class="text-sm opacity-70">Current value</p>
+            <span id="count" class="text-3xl font-black">0</span>
+        </section>
+        <div class="card-actions justify-end">
+            <button class="btn btn-primary" hx-post="/api/increment" hx-target="#count" hx-swap="innerHTML">Increment</button>
+        </div>
+    </div>
+</div>`)
+{{- else }}
     fmt.Fprintf(w, `<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
     <header class="space-y-1">
         <h3 class="text-base font-semibold text-slate-900">Server counter</h3>
@@ -74,6 +123,7 @@ func (r *Router) htmxCounter(w http.ResponseWriter, req *http.Request) {
         Increment
     </button>
 </div>`)
+{{- end }}
 }
 
 func (r *Router) htmxIncrement(w http.ResponseWriter, req *http.Request) {
@@ -89,11 +139,19 @@ func (r *Router) htmxTodoList(w http.ResponseWriter, req *http.Request) {
         "Deploy your app",
     }
 
+{{- if has "DaisyUI" .Stack.Tags }}
+    html := `<div class="card bg-base-100 shadow-xl"><div class="card-body gap-4"><header class="space-y-1"><h3 class="card-title text-lg">Todo list</h3><p class="text-sm opacity-70">Loaded from the server using HTMX.</p></header><ul class="space-y-2 text-sm">`
+    for _, todo := range todos {
+        html += fmt.Sprintf(`<li class="rounded-xl bg-base-200/60 px-4 py-2">%s</li>`, todo)
+    }
+    html += `</ul></div></div>`
+{{- else }}
     html := `<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4"><header class="space-y-1"><h3 class="text-base font-semibold text-slate-900">Todo list</h3><p class="text-sm text-slate-600">Loaded from the server using HTMX.</p></header><ul class="space-y-2">`
     for _, todo := range todos {
         html += fmt.Sprintf(`<li class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">%s</li>`, todo)
     }
     html += `</ul></div>`
+{{- end }}
 
     fmt.Fprint(w, html)
 }

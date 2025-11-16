@@ -11,9 +11,6 @@
     {{- if .Stack.HasFeature "frontend-htmx" }}
     <script src="/assets/scripts/htmx.min.js" defer></script>
     {{- end }}
-    {{- if .Stack.HasFeature "frontend-fixi" }}
-    <script src="/assets/scripts/fixi.js" defer></script>
-    {{- end }}
     {{ printf "%s block \"head\" . %s" $lb $rb }}{{ printf "%s end %s" $lb $rb }}
   </head>
   <body class="{{ printf "%s block \"body_class\" . %s" $lb $rb }}{{ printf "%s end %s" $lb $rb }}">

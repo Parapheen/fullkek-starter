@@ -2,9 +2,10 @@ package http
 
 import (
     "context"
-    "fmt"
+    "log/slog"
     "net/http"
     "time"
+
     "github.com/justinas/nosurf"
 )
 
@@ -70,7 +71,7 @@ func (s *Server) Listen(ctx context.Context) error {
     errCh := make(chan error, 1)
 
     go func() {
-        fmt.Printf("Serving {{ .AppName }} via net/http on %s\n", s.cfg.Addr)
+        slog.Info("Serving {{ .AppName }} via net/http", "addr", s.cfg.Addr)
         if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
             errCh <- err
         }

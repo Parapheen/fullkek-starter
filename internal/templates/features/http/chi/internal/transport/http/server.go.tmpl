@@ -2,7 +2,7 @@ package http
 
 import (
     "context"
-    "fmt"
+    "log/slog"
     "net/http"
     "time"
 
@@ -70,7 +70,7 @@ func (s *Server) Listen(ctx context.Context) error {
     errCh := make(chan error, 1)
 
     go func() {
-        fmt.Printf("Serving {{ .AppName }} with chi on %s\n", s.cfg.Addr)
+        slog.Info("Serving {{ .AppName }} with chi", "addr", s.cfg.Addr)
         if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
             errCh <- err
         }

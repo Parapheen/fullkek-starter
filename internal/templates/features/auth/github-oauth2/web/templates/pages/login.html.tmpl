@@ -16,7 +16,7 @@
           </a>
         {{ printf "{{ end }}" }}
       {{ printf "{{ else }}" }}
-        <div class="alert">No providers configured.</div>
+        <div class="alert alert-warning">No providers configured.</div>
       {{ printf "{{ end }}" }}
       {{ printf "{{ if .Data.Next }}" }}
       <p class="text-center text-xs opacity-70">You will return to {{ printf "{{ .Data.Next }}" }} after signing in.</p>

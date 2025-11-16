@@ -61,19 +61,6 @@ var featureCatalog = []Feature{
 		},
 	},
 	{
-		ID:          "frontend-fixi",
-		CategoryID:  CategoryFrontend,
-		Name:        "Fixi.js",
-		Description: "Composable DOM bindings using the Fixi.js micro-library.",
-		Tags:        []string{"Fixi.js"},
-		Templates: []Template{
-			{
-				Source:      "features/frontend/fixi/public/assets/scripts/fixi.js.tmpl",
-				Destination: "public/assets/scripts/fixi.js",
-			},
-		},
-	},
-	{
 		ID:          "styling-tailwind",
 		CategoryID:  CategoryStyling,
 		Name:        "Tailwind CSS",
@@ -205,6 +192,13 @@ var featureCatalog = []Feature{
 				Destination: "internal/infrastructure/persistence/sqlite.go",
 			},
 		},
+	},
+	{
+		ID:          "auth-none",
+		CategoryID:  CategoryAuth,
+		Name:        "None",
+		Description: "Skip bundling authentication logic.",
+		Tags:        []string{"auth"},
 	},
 	{
 		ID:          "auth-github-oauth2",
