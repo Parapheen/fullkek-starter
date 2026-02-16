@@ -54,7 +54,7 @@ func NewServer(cfg Config) *Server {
     })
     handler = csrf
 
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    {{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
     handler = router.AuthMiddleware(handler)
     {{- end }}
 

@@ -1,0 +1,56 @@
+package auth
+
+import "time"
+
+type RequestMagicLinkRequest struct {
+	Email string
+ 	Next  string
+}
+
+type RequestMagicLinkResponse struct {
+	VerifyURL string
+}
+
+type VerifyMagicLinkRequest struct {
+	Token string
+}
+
+type VerifyMagicLinkResponse struct {
+	User    *UserDTO
+	Session *SessionDTO
+}
+
+type UserDTO struct {
+	ID        string
+	Email     string
+	Name      string
+	AvatarURL string
+	CreatedAt time.Time
+}
+
+type SessionDTO struct {
+	ID         string
+	UserID     string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	LastSeenAt time.Time
+	UserAgent  string
+	ClientIP   string
+	RevokedAt  *time.Time
+}
+
+type CurrentUserRequest struct {
+	SessionID string
+}
+
+type CurrentUserResponse struct {
+	User *UserDTO
+}
+
+type LogoutRequest struct {
+	SessionID string
+}
+
+type LogoutResponse struct {
+	Revoked bool
+}

@@ -1,0 +1,44 @@
+package user
+
+import (
+	"fmt"
+	"time"
+)
+
+type Clock interface {
+	Now() time.Time
+}
+
+type IDGenerator interface {
+	New() (string, error)
+}
+
+type User struct {
+	ID        string
+	Email     string
+	Name      string
+	AvatarURL string
+	CreatedAt time.Time
+}
+
+func New(idGen IDGenerator, clock Clock, name, email, avatarURL string) (*User, error) {
+	id, err := idGen.New()
+	if err != nil {
+		return nil, fmt.Errorf("generate user id: %w", err)
+	}
+
+	resolvedName := name
+	if resolvedName == "" {
+		resolvedName = email
+	}
+
+	now := clock.Now()
+
+	return &User{
+		ID:        id,
+		Email:     email,
+		Name:      resolvedName,
+		AvatarURL: avatarURL,
+		CreatedAt: now,
+	}, nil
+}

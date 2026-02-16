@@ -11,11 +11,17 @@ import (
     {{- end }}
     httptransport "{{ .ModulePath }}/internal/transport/http"
     env "{{ .ModulePath }}/internal/pkg/env"
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    "strings"
+	{{- if .Stack.HasFeature "auth-github-oauth2" }}
+	"fmt"
+	"strings"
 
     appauth "{{ .ModulePath }}/internal/app/auth"
     oauthinfra "{{ .ModulePath }}/internal/infrastructure/auth"
+    {{- end }}
+    {{- if .Stack.HasFeature "auth-magic-link" }}
+    "strings"
+
+    appauth "{{ .ModulePath }}/internal/app/auth"
     {{- end }}
 )
 
@@ -37,49 +43,54 @@ func New(ctx context.Context) (*App, error) {
         Addr: serverAddr,
     })
 
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    // Wire OAuth2-based auth if feature is enabled
-    clientID := env.Required("GITHUB_CLIENT_ID")
-    clientSecret := env.Required("GITHUB_CLIENT_SECRET")
-    callbackBase := strings.TrimRight(env.Get("OAUTH_CALLBACK_BASE", "http://localhost:3333"), "/")
-    if callbackBase == "" {
-        callbackBase = "http://localhost:3333"
+	{{- if .Stack.HasFeature "database-sqlite" }}
+	dsn := env.Get("SQLITE_DSN", "")
+	db, err := persistence.Init(ctx, persistence.Config{DSN: dsn})
+	if err != nil {
+		return nil, err
+	}
+
+    slog.Info("Connected to SQLite database")
+
+	{{- if .Stack.HasFeature "auth-github-oauth2" }}
+	ttl := httptransport.SessionTTL()
+	clientID := strings.TrimSpace(env.Get("GITHUB_CLIENT_ID", ""))
+	if clientID == "" {
+		return nil, fmt.Errorf("github oauth is enabled but GITHUB_CLIENT_ID is empty; set it in .env")
+	}
+	clientSecret := strings.TrimSpace(env.Get("GITHUB_CLIENT_SECRET", ""))
+	if clientSecret == "" {
+		return nil, fmt.Errorf("github oauth is enabled but GITHUB_CLIENT_SECRET is empty; set it in .env")
+	}
+	callbackBase := strings.TrimRight(env.Get("OAUTH_CALLBACK_BASE", "http://localhost:3333"), "/")
+	if callbackBase == "" {
+		callbackBase = "http://localhost:3333"
     }
     callbackURL := callbackBase + "/auth/github/callback"
     providers := []appauth.OAuthProvider{
         oauthinfra.NewGithubProvider(clientID, clientSecret, callbackURL, nil),
     }
-
-    var users appauth.UserRepository
-    var sessions appauth.SessionRepository
-    {{- if .Stack.HasFeature "database-sqlite" }}
-    // initialize db before repositories
-    {{- end }}
-    ttl := httptransport.SessionTTL()
-    // users/sessions repositories assigned after db initialization below
-    {{- end }}
-
-    {{- if .Stack.HasFeature "database-sqlite" }}
-    dsn := env.Required("SQLITE_DSN")
-    db, err := persistence.Init(ctx, persistence.Config{DSN: dsn})
-    if err != nil {
-        return nil, err
-    }
-
-    slog.Info("Connected to SQLite database")
-
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    users = persistence.NewSQLiteUserRepository(db)
-    sessions = persistence.NewSQLiteSessionRepository(db)
+    users := persistence.NewSQLiteUserRepository(db)
+    sessions := persistence.NewSQLiteSessionRepository(db)
     authService := appauth.NewService(users, sessions, providers, appauth.SystemClock{}, ttl)
+    srv.Router().SetAuthService(authService)
+	{{- end }}
+
+	{{- if .Stack.HasFeature "auth-magic-link" }}
+	ttl := httptransport.SessionTTL()
+	baseURL := strings.TrimRight(env.Get("MAGIC_LINK_BASE_URL", "http://localhost:3333"), "/")
+	if baseURL == "" {
+		baseURL = "http://localhost:3333"
+    }
+    users := persistence.NewSQLiteUserRepository(db)
+    sessions := persistence.NewSQLiteSessionRepository(db)
+    tokens := persistence.NewSQLiteMagicLinkTokenRepository(db)
+    authService := appauth.NewService(users, sessions, tokens, appauth.SystemClock{}, ttl, httptransport.MagicLinkTTL(), baseURL)
     srv.Router().SetAuthService(authService)
     {{- end }}
 
     return &App{server: srv, db: db}, nil
     {{- else }}
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    // Auth is disabled when SQLite is not selected; do not wire repositories
-    {{- end }}
     return &App{server: srv}, nil
     {{- end }}
 }

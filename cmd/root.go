@@ -25,6 +25,9 @@ build a project skeleton that is ready for templates, assets, and server wiring.
 			if bannerPrinted {
 				return
 			}
+			if !isInteractive(cmd.InOrStdin()) || !isInteractiveWriter(cmd.OutOrStdout()) {
+				return
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), output.RenderBanner())
 			fmt.Fprintln(cmd.OutOrStdout())
 			bannerPrinted = true

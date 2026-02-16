@@ -37,6 +37,11 @@ var BaseTemplates = []stacks.Template{
 		Mode:        0o644,
 	},
 	{
+		Source:      "base/env.tmpl",
+		Destination: ".env",
+		Mode:        0o644,
+	},
+	{
 		Source:      "base/env.example.tmpl",
 		Destination: ".env.example",
 		Mode:        0o644,
@@ -79,6 +84,11 @@ var BaseTemplates = []stacks.Template{
 	{
 		Source:      "base/web/templates/navbar.html.tmpl",
 		Destination: "web/templates/navbar.html",
+		Mode:        0o644,
+	},
+	{
+		Source:      "base/web/templates/footer.html.tmpl",
+		Destination: "web/templates/footer.html",
 		Mode:        0o644,
 	},
 	{

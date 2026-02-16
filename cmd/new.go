@@ -28,12 +28,14 @@ func newNewCommand() *cobra.Command {
 		styling    string
 		http       string
 		database   string
+		auth       string
 	}
 
 	frontendDefault := first(defaults[stacks.CategoryFrontend])
 	stylingDefault := first(defaults[stacks.CategoryStyling])
 	httpDefault := first(defaults[stacks.CategoryHTTP])
 	databaseDefault := first(defaults[stacks.CategoryDatabase])
+	authDefault := first(defaults[stacks.CategoryAuth])
 
 	cmd := &cobra.Command{
 		Use:   "new [app-name]",
@@ -52,6 +54,7 @@ func newNewCommand() *cobra.Command {
 					stacks.CategoryStyling:  opts.styling,
 					stacks.CategoryHTTP:     opts.http,
 					stacks.CategoryDatabase: opts.database,
+					stacks.CategoryAuth:     opts.auth,
 				}),
 			)
 
@@ -134,11 +137,9 @@ func newNewCommand() *cobra.Command {
 				return err
 			}
 
-			// Use the beautiful success output for interactive terminals
 			if shouldUseWizard(cmd, opts.noUI) {
 				output.PrintSuccess(cmd.OutOrStdout(), destination, stack)
 			} else {
-				// Keep simple output for non-interactive use (CI/CD, scripts, etc.)
 				printNextSteps(cmd.OutOrStdout(), destination, stack)
 			}
 
@@ -154,6 +155,13 @@ func newNewCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.styling, "styling", stylingDefault, "styling feature identifier")
 	cmd.Flags().StringVar(&opts.http, "http", httpDefault, "HTTP framework feature identifier")
 	cmd.Flags().StringVar(&opts.database, "database", databaseDefault, "database feature identifier")
+	cmd.Flags().StringVar(&opts.auth, "auth", authDefault, "authentication feature identifier")
+
+	registerFeatureCompletion(cmd, "frontend", stacks.CategoryFrontend)
+	registerFeatureCompletion(cmd, "styling", stacks.CategoryStyling)
+	registerFeatureCompletion(cmd, "http", stacks.CategoryHTTP)
+	registerFeatureCompletion(cmd, "database", stacks.CategoryDatabase)
+	registerFeatureCompletion(cmd, "auth", stacks.CategoryAuth)
 
 	return cmd
 }
@@ -234,9 +242,22 @@ func printNextSteps(out io.Writer, destination string, stack stacks.Stack) {
 
 	fmt.Fprintln(out, "\nNext steps:")
 	fmt.Fprintf(out, "  1. cd %s\n", destination)
-	fmt.Fprintln(out, "  2. go mod tidy")
-	fmt.Fprintln(out, "  3. go run ./cmd/server")
+	fmt.Fprintln(out, "  2. make go")
 	fmt.Fprintf(out, "\nReview %s/README.md for detailed guidance.\n", destination)
+}
+
+func registerFeatureCompletion(cmd *cobra.Command, flagName, categoryID string) {
+	err := cmd.RegisterFlagCompletionFunc(flagName, func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		features := stacks.FeaturesForCategory(categoryID)
+		values := make([]string, 0, len(features))
+		for _, feature := range features {
+			values = append(values, feature.ID+"\t"+feature.Name)
+		}
+		return values, cobra.ShellCompDirectiveNoFileComp
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func first(values []string) string {

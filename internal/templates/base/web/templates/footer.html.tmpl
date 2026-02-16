@@ -1,0 +1,44 @@
+{{- $lb := "{{" -}}
+{{- $rb := "}}" -}}
+{{ printf "%s define \"footer\" %s\n" $lb $rb }}
+{{- if .Stack.HasFeature "styling-daisyui" }}
+<footer class="border-t border-base-200 bg-base-100/90">
+  <div class="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-12 md:flex-row md:items-start md:justify-between">
+    <div class="space-y-3 max-w-sm">
+      <a class="text-xl font-semibold text-base-content" href="/">{{ .AppName }}</a>
+      <p class="text-sm text-base-content/70">Opinionated scaffolding for product teams who value momentum and polish.</p>
+      <p class="text-xs uppercase tracking-[0.35em] text-base-content/60">Built with Fullkek Starter</p>
+    </div>
+    <div class="grid flex-1 gap-8 text-sm md:grid-cols-3">
+      <div class="space-y-2">
+        <p class="font-semibold text-base-content">Product</p>
+        <a class="link-hover block text-base-content/70" href="#features">Features</a>
+        <a class="link-hover block text-base-content/70" href="#get-started">How it works</a>
+      </div>
+      <div class="space-y-2">
+        <p class="font-semibold text-base-content">Company</p>
+        <a class="link-hover block text-base-content/70" href="#hero">About</a>
+        <a class="link-hover block text-base-content/70" href="mailto:hello@example.com">Contact</a>
+      </div>
+      <div class="space-y-2">
+        <p class="font-semibold text-base-content">Resources</p>
+        <a class="link-hover block text-base-content/70" href="#get-started">Docs</a>
+        <a class="link-hover block text-base-content/70" href="#features">Status</a>
+        <a class="link-hover block text-base-content/70" href="https://github.com/Parapheen/fullkek-starter" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+    </div>
+  </div>
+  <div class="border-t border-base-200">
+    <div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-base-content/60">
+      <span>© {{ .AppName }}. All rights reserved.</span>
+      <span class="text-base-content/50">Starter template by <a class="link link-hover text-base-content" href="https://github.com/Parapheen/fullkek-starter" target="_blank" rel="noreferrer">Fullkek</a></span>
+    </div>
+  </div>
+</footer>
+{{- else }}
+<footer class="border-t border-slate-200 bg-white py-8 text-center text-sm text-slate-500">
+  © {{ .AppName }}
+</footer>
+{{- end }}
+{{ printf "%s end %s\n" $lb $rb }}
+

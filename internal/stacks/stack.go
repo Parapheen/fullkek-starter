@@ -63,6 +63,10 @@ type Selection map[string][]string
 
 // Compose builds a stack from the provided feature selection.
 func Compose(sel Selection) (Stack, error) {
+	if err := ValidateSelection(sel); err != nil {
+		return Stack{}, err
+	}
+
 	resolved, err := resolveSelection(sel)
 	if err != nil {
 		return Stack{}, err
@@ -145,6 +149,12 @@ func Compose(sel Selection) (Stack, error) {
 	}, nil
 }
 
+// ValidateSelection checks that all selected feature IDs are valid and compatible.
+func ValidateSelection(sel Selection) error {
+	_, err := resolveSelection(sel)
+	return err
+}
+
 // CloneSelection returns a deep copy of the provided selection to avoid mutation.
 func CloneSelection(sel Selection) Selection {
 	out := make(Selection, len(sel))
@@ -164,7 +174,15 @@ type resolvedFeature struct {
 func resolveSelection(sel Selection) ([]resolvedFeature, error) {
 	categories := Categories()
 	index := featureIndex()
+	categoryIndex := categoryByID(categories)
 	resolved := make([]resolvedFeature, 0)
+	selectedByCategory := make(map[string][]Feature, len(categories))
+
+	for categoryID := range sel {
+		if _, ok := categoryIndex[categoryID]; !ok {
+			return nil, fmt.Errorf("unknown category %q", categoryID)
+		}
+	}
 
 	for _, category := range categories {
 		ids := sel[category.ID]
@@ -177,19 +195,157 @@ func resolveSelection(sel Selection) ([]resolvedFeature, error) {
 		if !category.AllowMultiple && len(ids) > 1 {
 			return nil, fmt.Errorf("multiple selections provided for single-choice category %q", category.Name)
 		}
+
+		availableFeatures := FeaturesForCategory(category.ID)
+		availableIDs := featureIDs(availableFeatures)
+
 		for _, id := range ids {
 			feature, ok := index[id]
 			if !ok {
-				return nil, fmt.Errorf("unknown feature %q", id)
+				suggestion := suggestClosestID(id, availableIDs)
+				if suggestion != "" {
+					return nil, fmt.Errorf("unknown feature %q for %s; did you mean %q? valid values: %s", id, category.Name, suggestion, strings.Join(availableIDs, ", "))
+				}
+				return nil, fmt.Errorf("unknown feature %q for %s; valid values: %s", id, category.Name, strings.Join(availableIDs, ", "))
 			}
 			if feature.CategoryID != category.ID {
-				return nil, fmt.Errorf("feature %q does not belong to category %q", id, category.Name)
+				actualCategory := feature.CategoryID
+				if actual, ok := categoryIndex[feature.CategoryID]; ok {
+					actualCategory = actual.Name
+				}
+				return nil, fmt.Errorf("feature %q does not belong to category %q (belongs to %q)", id, category.Name, actualCategory)
 			}
 			resolved = append(resolved, resolvedFeature{Category: category, Feature: feature})
+			selectedByCategory[category.ID] = append(selectedByCategory[category.ID], feature)
+		}
+	}
+
+	for _, selectedFeatures := range selectedByCategory {
+		for _, selected := range selectedFeatures {
+			requiredIDs := FeatureDependencies(selected.ID)
+			for _, requiredID := range requiredIDs {
+				requiredFeature, ok := index[requiredID]
+				if !ok {
+					return nil, fmt.Errorf("feature %q depends on unknown feature %q", selected.ID, requiredID)
+				}
+
+				requiredCategory, ok := categoryIndex[requiredFeature.CategoryID]
+				if !ok {
+					return nil, fmt.Errorf("feature %q depends on %q in unknown category %q", selected.ID, requiredID, requiredFeature.CategoryID)
+				}
+
+				categorySelection := selectedByCategory[requiredFeature.CategoryID]
+				if len(categorySelection) == 0 {
+					return nil, fmt.Errorf("feature %q requires %q in category %q", selected.ID, requiredID, requiredCategory.Name)
+				}
+
+				if !containsFeature(categorySelection, requiredID) {
+					chosenIDs := make([]string, 0, len(categorySelection))
+					for _, chosen := range categorySelection {
+						chosenIDs = append(chosenIDs, chosen.ID)
+					}
+					return nil, fmt.Errorf("feature %q requires %q; selected in %s: %s", selected.ID, requiredID, requiredCategory.Name, strings.Join(chosenIDs, ", "))
+				}
+			}
 		}
 	}
 
 	return resolved, nil
+}
+
+func categoryByID(categories []FeatureCategory) map[string]FeatureCategory {
+	index := make(map[string]FeatureCategory, len(categories))
+	for _, category := range categories {
+		index[category.ID] = category
+	}
+	return index
+}
+
+func featureIDs(features []Feature) []string {
+	ids := make([]string, 0, len(features))
+	for _, feature := range features {
+		ids = append(ids, feature.ID)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func containsFeature(features []Feature, id string) bool {
+	for _, feature := range features {
+		if feature.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func suggestClosestID(value string, candidates []string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || len(candidates) == 0 {
+		return ""
+	}
+
+	best := ""
+	bestDistance := 1 << 30
+	for _, candidate := range candidates {
+		distance := levenshteinDistance(value, candidate)
+		if distance < bestDistance {
+			bestDistance = distance
+			best = candidate
+		}
+	}
+
+	threshold := len(value) / 3
+	if threshold < 2 {
+		threshold = 2
+	}
+	if bestDistance > threshold {
+		return ""
+	}
+
+	return best
+}
+
+func levenshteinDistance(a, b string) int {
+	if a == b {
+		return 0
+	}
+	if a == "" {
+		return len(b)
+	}
+	if b == "" {
+		return len(a)
+	}
+
+	prev := make([]int, len(b)+1)
+	for j := 0; j <= len(b); j++ {
+		prev[j] = j
+	}
+
+	for i := 1; i <= len(a); i++ {
+		curr := make([]int, len(b)+1)
+		curr[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 0
+			if a[i-1] != b[j-1] {
+				cost = 1
+			}
+			deletion := prev[j] + 1
+			insertion := curr[j-1] + 1
+			substitution := prev[j-1] + cost
+
+			curr[j] = deletion
+			if insertion < curr[j] {
+				curr[j] = insertion
+			}
+			if substitution < curr[j] {
+				curr[j] = substitution
+			}
+		}
+		prev = curr
+	}
+
+	return prev[len(b)]
 }
 
 // featureIndex returns the immutable feature lookup table.

@@ -2,10 +2,11 @@
 {{- $rb := "}}" -}}
 {{ printf "%s define \"base\" %s\n" $lb $rb }}
 <!doctype html>
-<html lang="en">
+<html lang="en"{{- if .Stack.HasFeature "styling-daisyui" }} data-theme="light"{{- end }}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ printf "%s .CSRFToken %s" $lb $rb }}" />
     <title>{{ printf "%s block \"title\" . %s" $lb $rb }}{{ .AppName }}{{ printf "%s end %s" $lb $rb }}</title>
     <link rel="stylesheet" href="/assets/styles/output.css" />
     {{- if .Stack.HasFeature "frontend-htmx" }}
@@ -13,13 +14,14 @@
     {{- end }}
     {{ printf "%s block \"head\" . %s" $lb $rb }}{{ printf "%s end %s" $lb $rb }}
   </head>
-  <body class="{{ printf "%s block \"body_class\" . %s" $lb $rb }}{{ printf "%s end %s" $lb $rb }}">
+  <body class="{{ printf "%s block \"body_class\" . %s" $lb $rb }}{{- if .Stack.HasFeature "styling-daisyui" }}min-h-screen bg-base-100 text-base-content{{- end }}{{ printf "%s end %s" $lb $rb }}">
     <header>
       {{ printf "%s template \"navbar\" . %s\n" $lb $rb }}
     </header>
     <main>
       {{ printf "%s block \"content\" . %s" $lb $rb }}{{ printf "%s end %s" $lb $rb }}
     </main>
+    {{ printf "%s template \"footer\" . %s\n" $lb $rb }}
     <script src="/assets/scripts/csrf.js" defer></script>
     {{ printf "%s block \"scripts\" . %s" $lb $rb }}{{ printf "%s end %s" $lb $rb }}
   </body>

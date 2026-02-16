@@ -5,13 +5,16 @@ import (
     "net/http"
     "path/filepath"
 
+    "github.com/justinas/nosurf"
+
     appauth "{{ .ModulePath }}/internal/app/auth"
 )
 
 func renderTemplate(w http.ResponseWriter, req *http.Request, path string, data any) error {
     base := filepath.Join("web", "templates", "base.html")
     navbar := filepath.Join("web", "templates", "navbar.html")
-    tmpl, err := template.ParseFiles(base, navbar, path)
+    footer := filepath.Join("web", "templates", "footer.html")
+    tmpl, err := template.ParseFiles(base, navbar, footer, path)
 	if err != nil {
 		return err
 	}
@@ -22,7 +25,8 @@ func renderTemplate(w http.ResponseWriter, req *http.Request, path string, data 
 func renderPage(w http.ResponseWriter, req *http.Request, path string, data any) error {
     base := filepath.Join("web", "templates", "base.html")
     navbar := filepath.Join("web", "templates", "navbar.html")
-    tmpl, err := template.ParseFiles(base, navbar, path)
+    footer := filepath.Join("web", "templates", "footer.html")
+    tmpl, err := template.ParseFiles(base, navbar, footer, path)
 	if err != nil {
 		return err
 	}
@@ -35,6 +39,7 @@ type templatePayload struct {
         IsAuthenticated bool
         Name            string
     }
+    CSRFToken string
     Data any
 }
 
@@ -47,5 +52,6 @@ func newTemplatePayload(req *http.Request, data any) templatePayload {
         payload.Auth.IsAuthenticated = true
         payload.Auth.Name = user.Name
     }
+    payload.CSRFToken = nosurf.Token(req)
     return payload
 }

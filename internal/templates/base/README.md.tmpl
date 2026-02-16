@@ -12,6 +12,8 @@ that best fits the stack.
 
 ## Getting Started
 
+A Git repository is initialized automatically when this project is scaffolded.
+
 Install dependencies:
 
 ```bash
@@ -52,7 +54,8 @@ The server will start on `http://localhost:3333`
 
 ### Environment (.env)
 
-Copy `.env.example` to `.env` and adjust values as needed. The app automatically loads `.env` on startup.
+A ready-to-run `.env` file is generated automatically. The app loads it on startup.
+Use `.env.example` as a reference if you need to reset values.
 
 - `SERVER_ADDR` – listen address (default `:3333`)
 {{- if .Stack.HasFeature "database-sqlite" }}
@@ -62,10 +65,14 @@ Copy `.env.example` to `.env` and adjust values as needed. The app automatically
 - `GITHUB_CLIENT_ID` – GitHub OAuth client ID
 - `GITHUB_CLIENT_SECRET` – GitHub OAuth client secret
 - `OAUTH_CALLBACK_BASE` – base URL used to build provider callbacks
-{{- if .Stack.HasFeature "database-sqlite" }}
+{{- end }}
+{{- if .Stack.HasFeature "auth-magic-link" }}
+- `MAGIC_LINK_BASE_URL` – base URL used to build verification links
+- `MAGIC_LINK_TTL_MINUTES` – token lifetime in minutes (default `15`)
+{{- end }}
+{{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
 - `SESSION_COOKIE_NAME` – session cookie name (default `sid`)
 - `SESSION_TTL_DAYS` – session lifetime in days (default `30`)
-{{- end }}
 {{- end }}
 
 ## Available Commands
@@ -97,7 +104,8 @@ make migrate-status
 Environment for SQLite DSN and migrations directory can be overridden via `DB_DSN` and `MIGRATIONS_DIR`.
 {{- end }}
 
-### OAuth (if enabled)
+{{- if .Stack.HasFeature "auth-github-oauth2" }}
+### GitHub OAuth (if enabled)
 
 Set the following environment variables to activate GitHub OAuth:
 
@@ -113,6 +121,26 @@ Routes available:
 - `/auth/{provider}/callback` – provider callback endpoint
 - `/profile` – protected page showing user info
 - `/logout` – clear session
+{{- end }}
+
+{{- if .Stack.HasFeature "auth-magic-link" }}
+### Magic Link Auth (if enabled)
+
+Set the following environment variables to activate passwordless login:
+
+```bash
+export MAGIC_LINK_BASE_URL="http://localhost:3333"
+export MAGIC_LINK_TTL_MINUTES=15
+```
+
+Routes available:
+
+- `GET /login` – sign-in page
+- `POST /login` – request a one-time magic link (printed to logs)
+- `GET /auth/magic/verify?token=...` – verify token and create session
+- `GET /profile` – protected page showing user info
+- `GET /logout` – clear session
+{{- end }}
 
 ## Project Structure
 

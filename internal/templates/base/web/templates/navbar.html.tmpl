@@ -2,22 +2,32 @@
 {{- $rb := "}}" -}}
 {{ printf "%s define \"navbar\" %s\n" $lb $rb }}
 {{- if .Stack.HasFeature "styling-daisyui" }}
-<nav class="border-b border-base-300 bg-base-100">
-  <div class="navbar mx-auto w-full max-w-5xl px-4">
+<nav class="sticky top-0 z-50 border-b border-base-200 bg-base-100/80 backdrop-blur">
+  <div class="navbar mx-auto w-full max-w-6xl px-4">
     <div class="navbar-start">
-      <a class="btn btn-ghost text-xl font-bold normal-case" href="/">{{ .AppName }}</a>
+      <a class="px-0 text-lg font-semibold normal-case tracking-tight text-base-content" href="/">{{ .AppName }}</a>
     </div>
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    <div class="navbar-end flex items-center gap-2 text-sm">
+    <div class="navbar-end gap-3">
+      {{- if .Stack.HasFeature "auth-github-oauth2" }}
       {{ printf "{{ if .Auth.IsAuthenticated }}" }}
-        <span class="hidden text-sm opacity-70 sm:inline">Signed in as <span class="font-semibold text-base-content">{{ printf "{{ .Auth.Name }}" }}</span></span>
-        <a class="btn btn-sm btn-ghost" href="/profile">Profile</a>
-        <a class="btn btn-sm btn-primary" href="/logout">Logout</a>
+        <div class="flex items-center gap-2 rounded-full border border-base-200 bg-base-100/70 px-3 py-1.5 text-sm">
+          <div class="avatar placeholder h-8 w-8">
+            <div class="grid h-full w-full place-items-center rounded-full bg-primary/10 text-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 0115 0"/>
+              </svg>
+            </div>
+          </div>
+          <span class="hidden font-medium text-base-content sm:inline">{{ printf "{{ .Auth.Name }}" }}</span>
+        </div>
+        <a class="btn btn-sm btn-primary rounded-full" href="/profile">Dashboard</a>
       {{ printf "{{ else }}" }}
-        <a class="btn btn-sm btn-primary" href="/login">Sign in</a>
+        <a class="btn btn-primary rounded-full" href="/login">Get started</a>
       {{ printf "{{ end }}" }}
+      {{- else }}
+      <a class="btn btn-primary rounded-full" href="#get-started">Get started</a>
+      {{- end }}
     </div>
-    {{- end }}
   </div>
 </nav>
 {{- else if .Stack.HasFeature "styling-tailwind-basecoat" }}

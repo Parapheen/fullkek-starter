@@ -11,42 +11,29 @@ import (
 )
 
 var (
-	// Color palette
-	primaryColor    = lipgloss.Color("#00D9FF")
-	successColor    = lipgloss.Color("#00FF87")
-	accentColor     = lipgloss.Color("#FF00FF")
-	mutedColor      = lipgloss.Color("#808080")
-	warningColor    = lipgloss.Color("#FFD700")
-	backgroundColor = lipgloss.Color("#1a1a1a")
+	primaryColor = lipgloss.Color("#00D9FF")
+	successColor = lipgloss.Color("#00FF87")
+	mutedColor   = lipgloss.Color("#808080")
+	warningColor = lipgloss.Color("#FFD700")
 
-	// Styles
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(successColor).
-			MarginTop(1).
-			MarginBottom(1)
+	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(successColor)
 
 	boxStyle = lipgloss.NewStyle().
 			Padding(1, 2).
 			MarginTop(1).
 			MarginBottom(1)
 
-	infoStyle = lipgloss.NewStyle().
-			Foreground(primaryColor)
+	infoStyle = lipgloss.NewStyle().Foreground(primaryColor)
 
 	labelStyle = lipgloss.NewStyle().
 			Foreground(mutedColor).
 			Bold(true)
 
-	valueStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF"))
+	valueStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 
 	stepStyle = lipgloss.NewStyle().
 			Foreground(warningColor).
 			Bold(true)
-
-	featureStyle = lipgloss.NewStyle().
-			Foreground(accentColor)
 
 	bannerLines = []string{
 		"███████╗██╗   ██╗██╗     ██╗     ██╗  ██╗███████╗██╗  ██╗",
@@ -72,12 +59,10 @@ var (
 		lipgloss.Color("#DF5CFF"),
 	}
 
-	bannerBaseStyle = lipgloss.NewStyle().
-			Bold(true)
+	bannerBaseStyle = lipgloss.NewStyle().Bold(true)
 
 	bannerContainerStyle = lipgloss.NewStyle().
-				Background(backgroundColor).
-				Padding(2, 2)
+				Padding(1, 1)
 )
 
 // RenderBanner returns the styled fullkek header with its gradient applied.
@@ -92,21 +77,29 @@ func RenderBanner() string {
 	return bannerContainerStyle.Render(content)
 }
 
-// PrintSuccess renders a beautiful success message with project details and next steps
+// PrintSuccess renders project details and next steps for interactive runs.
 func PrintSuccess(out io.Writer, destination string, stack stacks.Stack) {
 	var b strings.Builder
+	b.WriteString(titleStyle.Render("Project scaffolded") + "\n")
+	b.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Destination:"), valueStyle.Render(destination)))
+	b.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Stack:"), valueStyle.Render(stack.Name)))
 
-	// Next steps
+	if len(stack.Features) > 0 {
+		featureNames := make([]string, 0, len(stack.Features))
+		for _, feature := range stack.Features {
+			featureNames = append(featureNames, feature.Name)
+		}
+		b.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Features:"), valueStyle.Render(strings.Join(featureNames, ", "))))
+	}
+
 	var steps strings.Builder
-	steps.WriteString(infoStyle.Render("🚀 Next steps:") + "\n\n")
-	steps.WriteString(fmt.Sprintf("   %s %s\n", stepStyle.Render("1."), valueStyle.Render(fmt.Sprintf("cd %s", destination))))
-	steps.WriteString(fmt.Sprintf("   %s %s\n", stepStyle.Render("2."), valueStyle.Render("make go")))
+	steps.WriteString(infoStyle.Render("Next steps") + "\n\n")
+	steps.WriteString(fmt.Sprintf("  %s %s\n", stepStyle.Render("1."), valueStyle.Render(fmt.Sprintf("cd %s", destination))))
+	steps.WriteString(fmt.Sprintf("  %s %s\n", stepStyle.Render("2."), valueStyle.Render("make go")))
+	steps.WriteString(fmt.Sprintf("\n  %s %s\n", labelStyle.Render("Read:"), lipgloss.NewStyle().Foreground(mutedColor).Render(fmt.Sprintf("%s/README.md", destination))))
 
-	mutedStyle := lipgloss.NewStyle().Foreground(mutedColor)
-	steps.WriteString(fmt.Sprintf("\n   %s %s\n", labelStyle.Render("📖"), mutedStyle.Render(fmt.Sprintf("Review %s/README.md for detailed guidance.", destination))))
-
-	stepsBox := boxStyle.Render(steps.String())
-	b.WriteString(stepsBox + "\n")
+	b.WriteString(boxStyle.Render(steps.String()))
+	b.WriteString("\n")
 
 	fmt.Fprint(out, b.String())
 }

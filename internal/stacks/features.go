@@ -310,6 +310,121 @@ var featureCatalog = []Feature{
 			},
 		},
 	},
+	{
+		ID:          "auth-magic-link",
+		CategoryID:  CategoryAuth,
+		Name:        "Magic Link",
+		Description: "Passwordless sign-in via one-time emailed link (logged in development).",
+		Tags:        []string{"auth", "magic-link", "passwordless"},
+		Directories: []string{
+			"db/migrations",
+			"internal/app/auth",
+			"internal/domain/magiclink",
+			"internal/domain/session",
+			"internal/domain/user",
+			"internal/infrastructure/persistence",
+			"internal/transport/http",
+			"web/templates/pages",
+		},
+		Templates: []Template{
+			// HTTP transport
+			{
+				Source:      "features/auth/magic-link/internal/transport/http/auth_handlers.go.tmpl",
+				Destination: "internal/transport/http/auth_handlers.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/transport/http/render.go.tmpl",
+				Destination: "internal/transport/http/render.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/transport/http/auth_middleware.go.tmpl",
+				Destination: "internal/transport/http/auth_middleware.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/transport/http/cookies.go.tmpl",
+				Destination: "internal/transport/http/cookies.go",
+			},
+			// Web templates
+			{
+				Source:      "features/auth/magic-link/web/templates/pages/profile.html.tmpl",
+				Destination: "web/templates/pages/profile.html",
+			},
+			{
+				Source:      "features/auth/magic-link/web/templates/pages/login.html.tmpl",
+				Destination: "web/templates/pages/login.html",
+			},
+			// Domain: user
+			{
+				Source:      "features/auth/magic-link/internal/domain/user/model.go.tmpl",
+				Destination: "internal/domain/user/model.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/domain/user/repository.go.tmpl",
+				Destination: "internal/domain/user/repository.go",
+			},
+			// Domain: session
+			{
+				Source:      "features/auth/magic-link/internal/domain/session/model.go.tmpl",
+				Destination: "internal/domain/session/model.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/domain/session/repository.go.tmpl",
+				Destination: "internal/domain/session/repository.go",
+			},
+			// Domain: magic link
+			{
+				Source:      "features/auth/magic-link/internal/domain/magiclink/model.go.tmpl",
+				Destination: "internal/domain/magiclink/model.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/domain/magiclink/repository.go.tmpl",
+				Destination: "internal/domain/magiclink/repository.go",
+			},
+			// Application
+			{
+				Source:      "features/auth/magic-link/internal/application/auth/service.go.tmpl",
+				Destination: "internal/app/auth/service.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/application/auth/type.go.tmpl",
+				Destination: "internal/app/auth/type.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/application/auth/ports.go.tmpl",
+				Destination: "internal/app/auth/ports.go",
+			},
+			// Infrastructure: persistence
+			{
+				Source:      "features/auth/magic-link/internal/infrastructure/persistence/user_repository_sqlite.go.tmpl",
+				Destination: "internal/infrastructure/persistence/user_repository_sqlite.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/infrastructure/persistence/session_repository_sqlite.go.tmpl",
+				Destination: "internal/infrastructure/persistence/session_repository_sqlite.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/infrastructure/persistence/magic_link_token_repository_sqlite.go.tmpl",
+				Destination: "internal/infrastructure/persistence/magic_link_token_repository_sqlite.go",
+			},
+			{
+				Source:      "features/auth/magic-link/internal/infrastructure/persistence/tx.go.tmpl",
+				Destination: "internal/infrastructure/persistence/tx.go",
+			},
+			// Migrations
+			{
+				Source:      "features/auth/magic-link/db/migrations/0001_create_users.sql.tmpl",
+				Destination: "db/migrations/0001_create_users.sql",
+			},
+			{
+				Source:      "features/auth/magic-link/db/migrations/0002_create_sessions.sql.tmpl",
+				Destination: "db/migrations/0002_create_sessions.sql",
+			},
+			{
+				Source:      "features/auth/magic-link/db/migrations/0003_create_magic_link_tokens.sql.tmpl",
+				Destination: "db/migrations/0003_create_magic_link_tokens.sql",
+			},
+		},
+	},
 }
 
 var defaultSelection = Selection{
@@ -317,6 +432,12 @@ var defaultSelection = Selection{
 	CategoryStyling:  {"styling-tailwind"},
 	CategoryHTTP:     {"http-standard"},
 	CategoryDatabase: {"database-none"},
+	CategoryAuth:     {"auth-none"},
+}
+
+var featureDependencies = map[string][]string{
+	"auth-github-oauth2": {"database-sqlite"},
+	"auth-magic-link":    {"database-sqlite"},
 }
 
 // Categories returns a copy of the registered feature categories ordered for display.
@@ -359,4 +480,12 @@ func FeatureByID(id string) (Feature, bool) {
 		}
 	}
 	return Feature{}, false
+}
+
+// FeatureDependencies returns the IDs required by a feature.
+func FeatureDependencies(id string) []string {
+	deps := featureDependencies[id]
+	out := make([]string, len(deps))
+	copy(out, deps)
+	return out
 }

@@ -14,11 +14,14 @@ Or run from source:
 go run . --help
 ```
 
+Note: `go install` creates a `fullkek-starter` binary by default. You can run it
+directly, or alias it to `fullkek` for shorter commands.
+
 ## TL;DR (Quickstart)
 
 ```sh
 # 1) Create a new app using the interactive wizard
-fullkek-starter new
+fullkek new
 
 # 2) Next steps after generation
 make go
@@ -49,6 +52,7 @@ You’ll be guided to enter:
 
 - App name, module path, output directory
 - One option for each category: frontend, styling, web framework
+- Optional auth provider (available when using `database-sqlite`)
 - Whether to overwrite the destination if it exists
 
 Press Tab to move forward, Shift+Tab to go back, and Enter to confirm. Esc cancels.
@@ -64,6 +68,7 @@ fullkek new [app-name]
   --frontend string   frontend feature id
   --styling  string   styling feature id
   --http     string   HTTP framework feature id
+  --auth     string   authentication feature id
   -v, --verbose       verbose output
 ```
 
@@ -90,6 +95,10 @@ If `--no-ui` is used and `[app-name]` is omitted, the command will error. Withou
 
   - `auth-none`: Skip OAuth providers
   - `auth-github-oauth2`: GitHub OAuth2 login flow
+  - `auth-magic-link`: Passwordless magic-link flow (development link delivery via logs)
+
+`auth-github-oauth2` and `auth-magic-link` require `database-sqlite`. The CLI
+validates this and will show a clear error with how to fix the selection.
 
 ## License
 

@@ -1,0 +1,227 @@
+package auth
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+
+	domainMagicLink "{{ .ModulePath }}/internal/domain/magiclink"
+	domainSession "{{ .ModulePath }}/internal/domain/session"
+	domainUser "{{ .ModulePath }}/internal/domain/user"
+)
+
+type Service struct {
+	users        UserRepository
+	sessions     SessionRepository
+	tokens       MagicLinkTokenRepository
+	clock        Clock
+	sessionTTL   time.Duration
+	magicLinkTTL time.Duration
+	baseURL      string
+}
+
+type UUIDV7Generator struct{}
+
+func (UUIDV7Generator) New() (string, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
+}
+
+func NewService(users UserRepository, sessions SessionRepository, tokens MagicLinkTokenRepository, clock Clock, sessionTTL, magicLinkTTL time.Duration, baseURL string) *Service {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		baseURL = "http://localhost:3333"
+	}
+	if magicLinkTTL <= 0 {
+		magicLinkTTL = 15 * time.Minute
+	}
+	if sessionTTL <= 0 {
+		sessionTTL = 30 * 24 * time.Hour
+	}
+	return &Service{
+		users:        users,
+		sessions:     sessions,
+		tokens:       tokens,
+		clock:        clock,
+		sessionTTL:   sessionTTL,
+		magicLinkTTL: magicLinkTTL,
+		baseURL:      baseURL,
+	}
+}
+
+func randomToken(n int) string {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func hashToken(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
+
+func (s *Service) RequestMagicLink(ctx context.Context, req RequestMagicLinkRequest) (RequestMagicLinkResponse, error) {
+	resp := RequestMagicLinkResponse{}
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" {
+		return resp, fmt.Errorf("email is required")
+	}
+
+	raw := randomToken(24)
+	hashed := hashToken(raw)
+
+	idGen := UUIDV7Generator{}
+	token, err := domainMagicLink.New(idGen, s.clock, s.magicLinkTTL, email, hashed)
+	if err != nil {
+		return resp, fmt.Errorf("create magic link token: %w", err)
+	}
+	if err := s.tokens.Create(ctx, token); err != nil {
+		return resp, fmt.Errorf("store magic link token: %w", err)
+	}
+
+	verifyURL := s.baseURL + "/auth/magic/verify?token=" + url.QueryEscape(raw)
+	if req.Next != "" {
+		verifyURL += "&next=" + url.QueryEscape(req.Next)
+	}
+	resp.VerifyURL = verifyURL
+	return resp, nil
+}
+
+func (s *Service) VerifyMagicLink(ctx context.Context, req VerifyMagicLinkRequest) (VerifyMagicLinkResponse, error) {
+	resp := VerifyMagicLinkResponse{}
+	if strings.TrimSpace(req.Token) == "" {
+		return resp, fmt.Errorf("token is required")
+	}
+
+	hashed := hashToken(req.Token)
+	token, err := s.tokens.FindByTokenHash(ctx, hashed)
+	if err != nil {
+		return resp, fmt.Errorf("find magic link token: %w", err)
+	}
+	if token == nil {
+		return resp, fmt.Errorf("invalid or expired magic link")
+	}
+
+	now := s.clock.Now()
+	if token.UsedAt != nil {
+		return resp, fmt.Errorf("magic link already used")
+	}
+	if now.After(token.ExpiresAt) {
+		return resp, fmt.Errorf("magic link expired")
+	}
+
+	user, err := s.users.FindByEmail(ctx, token.Email)
+	if err != nil {
+		return resp, fmt.Errorf("find user by email: %w", err)
+	}
+
+	idGen := UUIDV7Generator{}
+	if user == nil {
+		candidate, createErr := domainUser.New(idGen, s.clock, token.Email, token.Email, "")
+		if createErr != nil {
+			return resp, fmt.Errorf("create user: %w", createErr)
+		}
+		if createErr = s.users.Create(ctx, candidate); createErr != nil {
+			return resp, fmt.Errorf("persist user: %w", createErr)
+		}
+		user = candidate
+	}
+
+	sess, err := domainSession.New(idGen, s.clock, s.sessionTTL, user.ID, "", "")
+	if err != nil {
+		return resp, fmt.Errorf("create session: %w", err)
+	}
+	if err := s.sessions.Create(ctx, sess); err != nil {
+		return resp, fmt.Errorf("persist session: %w", err)
+	}
+
+	if err := s.tokens.MarkUsed(ctx, token.ID, now); err != nil {
+		return resp, fmt.Errorf("mark token used: %w", err)
+	}
+
+	resp.User = toUserDTO(user)
+	resp.Session = toSessionDTO(sess)
+	return resp, nil
+}
+
+func (s *Service) CurrentUser(ctx context.Context, req CurrentUserRequest) (CurrentUserResponse, error) {
+	resp := CurrentUserResponse{}
+	if req.SessionID == "" {
+		return resp, nil
+	}
+	sess, err := s.sessions.FindByID(ctx, req.SessionID)
+	if err != nil || sess == nil {
+		return resp, err
+	}
+	now := s.clock.Now()
+	if sess.IsExpired(now) {
+		return resp, nil
+	}
+	_ = s.sessions.Touch(ctx, req.SessionID, now)
+	user, err := s.users.FindByID(ctx, sess.UserID)
+	if err != nil || user == nil {
+		return resp, err
+	}
+	resp.User = toUserDTO(user)
+	return resp, nil
+}
+
+func (s *Service) Logout(ctx context.Context, req LogoutRequest) (LogoutResponse, error) {
+	resp := LogoutResponse{}
+	if req.SessionID == "" {
+		return resp, nil
+	}
+	if err := s.sessions.Revoke(ctx, req.SessionID, s.clock.Now()); err != nil {
+		return resp, err
+	}
+	resp.Revoked = true
+	return resp, nil
+}
+
+func toUserDTO(user *domainUser.User) *UserDTO {
+	if user == nil {
+		return nil
+	}
+	return &UserDTO{
+		ID:        user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		AvatarURL: user.AvatarURL,
+		CreatedAt: user.CreatedAt,
+	}
+}
+
+func toSessionDTO(sess *domainSession.Session) *SessionDTO {
+	if sess == nil {
+		return nil
+	}
+	var revokedAt *time.Time
+	if sess.RevokedAt != nil {
+		t := *sess.RevokedAt
+		revokedAt = &t
+	}
+	return &SessionDTO{
+		ID:         sess.ID,
+		UserID:     sess.UserID,
+		CreatedAt:  sess.CreatedAt,
+		ExpiresAt:  sess.ExpiresAt,
+		LastSeenAt: sess.LastSeenAt,
+		UserAgent:  sess.UserAgent,
+		ClientIP:   sess.ClientIP,
+		RevokedAt:  revokedAt,
+	}
+}
+
+type SystemClock struct{}
+
+func (SystemClock) Now() time.Time { return time.Now() }

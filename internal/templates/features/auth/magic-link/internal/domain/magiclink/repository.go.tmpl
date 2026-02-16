@@ -1,0 +1,12 @@
+package magiclink
+
+import (
+	"context"
+	"time"
+)
+
+type Repository interface {
+	Create(ctx context.Context, token *Token) error
+	FindByTokenHash(ctx context.Context, tokenHash string) (*Token, error)
+	MarkUsed(ctx context.Context, id string, when time.Time) error
+}

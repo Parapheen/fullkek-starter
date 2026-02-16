@@ -47,7 +47,7 @@ func NewServer(cfg Config) *Server {
     })
     
     router := NewRouter()
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
+    {{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
     chiRouter.Use(router.AuthMiddleware)
     {{- end }}
     router.Mount(chiRouter)

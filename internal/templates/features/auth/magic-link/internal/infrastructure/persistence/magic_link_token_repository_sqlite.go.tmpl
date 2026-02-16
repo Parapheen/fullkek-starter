@@ -1,0 +1,69 @@
+package persistence
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	domainMagicLink "{{ .ModulePath }}/internal/domain/magiclink"
+)
+
+type SQLiteMagicLinkTokenRepository struct {
+	db *sqlx.DB
+}
+
+func NewSQLiteMagicLinkTokenRepository(db *sqlx.DB) *SQLiteMagicLinkTokenRepository {
+	return &SQLiteMagicLinkTokenRepository{db: db}
+}
+
+func (r *SQLiteMagicLinkTokenRepository) Create(ctx context.Context, token *domainMagicLink.Token) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO magic_link_tokens(id, email, token_hash, created_at, expires_at, used_at) VALUES(?, ?, ?, ?, ?, ?)`,
+		token.ID,
+		token.Email,
+		token.TokenHash,
+		token.CreatedAt,
+		token.ExpiresAt,
+		token.UsedAt,
+	)
+	return err
+}
+
+func (r *SQLiteMagicLinkTokenRepository) FindByTokenHash(ctx context.Context, tokenHash string) (*domainMagicLink.Token, error) {
+	const query = `SELECT id, email, token_hash, created_at, expires_at, used_at FROM magic_link_tokens WHERE token_hash = ?`
+	var row dbMagicLinkToken
+	if err := sqlx.GetContext(ctx, r.db, &row, query, tokenHash); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return row.toDomain(), nil
+}
+
+func (r *SQLiteMagicLinkTokenRepository) MarkUsed(ctx context.Context, id string, when time.Time) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE magic_link_tokens SET used_at = ? WHERE id = ?`, when, id)
+	return err
+}
+
+type dbMagicLinkToken struct {
+	ID        string     `db:"id"`
+	Email     string     `db:"email"`
+	TokenHash string     `db:"token_hash"`
+	CreatedAt time.Time  `db:"created_at"`
+	ExpiresAt time.Time  `db:"expires_at"`
+	UsedAt    *time.Time `db:"used_at"`
+}
+
+func (t dbMagicLinkToken) toDomain() *domainMagicLink.Token {
+	return &domainMagicLink.Token{
+		ID:        t.ID,
+		Email:     t.Email,
+		TokenHash: t.TokenHash,
+		CreatedAt: t.CreatedAt,
+		ExpiresAt: t.ExpiresAt,
+		UsedAt:    t.UsedAt,
+	}
+}

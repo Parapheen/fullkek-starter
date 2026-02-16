@@ -1,0 +1,41 @@
+{{- $lb := "{{" -}}
+{{- $rb := "}}" -}}
+{{ printf "%s define \"title\" %sSign in · %s%s end %s\n" $lb $rb .AppName $lb $rb }}
+{{ printf "%s define \"body_class\" %s" $lb $rb }}{{ if .Stack.HasFeature "styling-daisyui" }}min-h-screen bg-base-200 text-base-content{{ else }}min-h-screen bg-slate-50 text-slate-900{{ end }}{{ printf "%s end %s\n" $lb $rb }}
+{{ printf "%s define \"content\" %s\n" $lb $rb }}
+  <main class="mx-auto flex max-w-lg flex-col gap-8 px-6 py-16">
+    <header class="space-y-3 text-center">
+      <h1 class="text-3xl font-semibold">Sign in with magic link</h1>
+      <p class="text-sm opacity-70">Enter your email and we will generate a one-time sign-in link.</p>
+    </header>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+      {{ printf "{{ if .Data.Message }}" }}
+      <p class="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ printf "{{ .Data.Message }}" }}</p>
+      {{ printf "{{ end }}" }}
+      {{ printf "{{ if .Data.Error }}" }}
+      <p class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ printf "{{ .Data.Error }}" }}</p>
+      {{ printf "{{ end }}" }}
+
+      <form class="space-y-4" method="post" action="/login">
+        <input type="hidden" name="csrf_token" value="{{ printf "{{ .CSRFToken }}" }}" />
+        <input type="hidden" name="next" value="{{ printf "{{ .Data.Next }}" }}" />
+        <label class="block space-y-2 text-sm">
+          <span class="font-medium text-slate-700">Email</span>
+          <input
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none"
+            type="email"
+            name="email"
+            required
+            placeholder="you@example.com"
+            value="{{ printf "{{ .Data.Email }}" }}"
+          />
+        </label>
+        <button class="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800" type="submit">
+          Send magic link
+        </button>
+      </form>
+    </section>
+  </main>
+{{ printf "%s end %s\n" $lb $rb }}
+{{ printf "%s template \"base\" . %s\n" $lb $rb }}

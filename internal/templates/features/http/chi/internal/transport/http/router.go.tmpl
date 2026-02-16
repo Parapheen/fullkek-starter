@@ -11,7 +11,10 @@ import (
 {{- end }}
 {{- if .Stack.HasFeature "auth-github-oauth2" }}
     appauth "{{ .ModulePath }}/internal/app/auth"
-    {{- end }}
+{{- end }}
+{{- if .Stack.HasFeature "auth-magic-link" }}
+    appauth "{{ .ModulePath }}/internal/app/auth"
+{{- end }}
 )
 
 var indexPage = filepath.Join("web", "templates", "pages", "index.html")
@@ -20,7 +23,7 @@ type Router struct {
 {{- if .Stack.HasFeature "frontend-htmx" }}
     exampleCounter atomic.Int64
 {{- end }}
-{{- if .Stack.HasFeature "auth-github-oauth2" }}
+{{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
     authService *appauth.Service
 {{- end }}
 }
@@ -45,6 +48,14 @@ func (r *Router) Mount(router chi.Router) {
     router.With(r.RequireAuth).Get("/profile", r.profile)
     {{- end }}
 
+    {{- if .Stack.HasFeature "auth-magic-link" }}
+    router.Get("/login", r.login)
+    router.Post("/login", r.login)
+    router.Get("/auth/magic/verify", r.verifyMagicLink)
+    router.Get("/logout", r.logout)
+    router.With(r.RequireAuth).Get("/profile", r.profile)
+    {{- end }}
+
 {{- if .Stack.HasFeature "frontend-htmx" }}
     // Demo API routes backing the generated UI examples. Remove them once replaced.
     router.Get("/api/counter", r.apiCounter)
@@ -56,7 +67,7 @@ func (r *Router) Mount(router chi.Router) {
 {{- end }}
 }
 
-{{- if .Stack.HasFeature "auth-github-oauth2" }}
+{{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
 
 // SetAuthService injects the authentication service into the router.
 func (r *Router) SetAuthService(svc *appauth.Service) {
@@ -66,7 +77,7 @@ func (r *Router) SetAuthService(svc *appauth.Service) {
 {{- end }}
 
 func (r *Router) home(w http.ResponseWriter, req *http.Request) {
-{{- if .Stack.HasFeature "auth-github-oauth2" }}
+{{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
     if err := renderPage(w, req, indexPage, nil); err != nil {
         http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
         return

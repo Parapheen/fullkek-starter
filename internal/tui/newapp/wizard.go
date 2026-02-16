@@ -72,11 +72,14 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		outputDir = suggestOutputDir(appName)
 	}
 
+	totalSteps := len(opts.Categories) + 5
+	step := 1
+
 	groups := make([]*huh.Group, 0, 3+len(opts.Categories)+2)
 
 	groups = append(groups, huh.NewGroup(
 		huh.NewInput().
-			Title("Application name").
+			Title(stepLabel(step, totalSteps, "Application name")).
 			Description("Used to derive default module and destination names.").
 			Placeholder("fullkek-demo").
 			Value(&appName).
@@ -87,10 +90,11 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 				return nil
 			}),
 	))
+	step++
 
 	groups = append(groups, huh.NewGroup(
 		huh.NewInput().
-			Title("Go module path").
+			Title(stepLabel(step, totalSteps, "Go module path")).
 			Description("Enter the Go module path (e.g. github.com/username/project).").
 			Placeholder("github.com/username/project").
 			Value(&modulePath).
@@ -101,6 +105,7 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 				return nil
 			}),
 	))
+	step++
 
 	bindings := make([]*featureBinding, 0, len(opts.Categories))
 
@@ -135,7 +140,7 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		}
 
 		selectField := huh.NewSelect[string]().
-			Title(category.Name).
+			Title(stepLabel(step, totalSteps, category.Name)).
 			Options(options...).
 			Value(&binding.value).
 			Validate(func(id string) error {
@@ -162,11 +167,12 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		}
 
 		groups = append(groups, group)
+		step++
 	}
 
 	groups = append(groups, huh.NewGroup(
 		huh.NewConfirm().
-			Title("Overwrite destination if it already exists?").
+			Title(stepLabel(step, totalSteps, "Overwrite destination if it already exists?")).
 			DescriptionFunc(func() string {
 				destination := scaffoldDestinationPath(workingDir, appName, outputDir)
 				if destination == "" {
@@ -184,33 +190,58 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 			Negative("No").
 			Value(&force),
 	))
+	step++
 
-	summary := huh.NewNote()
+	scaffoldNow := true
 
 	buildSummary := func() string {
 		trimmedApp := strings.TrimSpace(appName)
 		trimmedModule := strings.TrimSpace(modulePath)
+		resolvedOutput := resolveOutputDir(appName, outputDir)
+		if strings.TrimSpace(resolvedOutput) == "" {
+			resolvedOutput = "(not set)"
+		}
 		destination := scaffoldDestinationPath(workingDir, appName, outputDir)
 		if destination == "" {
 			destination = "(not set)"
 		}
 
 		var lines []string
-		lines = append(lines, "Project Details")
+		lines = append(lines, "Project details")
 		lines = append(lines,
 			fmt.Sprintf("  App name    : %s", valueOrPlaceholder(trimmedApp)),
 			fmt.Sprintf("  Module path : %s", valueOrPlaceholder(trimmedModule)),
+			fmt.Sprintf("  Output dir  : %s", resolvedOutput),
 			fmt.Sprintf("  Destination : %s", destination),
 			fmt.Sprintf("  Overwrite   : %s", humanizeBool(force)),
 		)
+
+		selected := make(map[string]string, len(bindings))
+		for _, binding := range bindings {
+			if binding.category.ID == stacks.CategoryAuth && !authEnabled() {
+				continue
+			}
+			selected[binding.category.ID] = binding.value
+		}
+
+		selection := stacks.SelectionFromIDs(selected)
+		stack, err := stacks.Compose(selection)
+		if err == nil {
+			lines = append(lines, "")
+			lines = append(lines, "Stack")
+			lines = append(lines, fmt.Sprintf("  %s", valueOrPlaceholder(strings.TrimSpace(stack.Name))))
+		} else {
+			lines = append(lines, "")
+			lines = append(lines, "Stack")
+			lines = append(lines, fmt.Sprintf("  Invalid selection: %s", err.Error()))
+		}
 
 		featureBlocksAdded := false
 		for _, binding := range bindings {
 			if binding.category.ID == stacks.CategoryAuth && !authEnabled() {
 				continue
 			}
-			featureName := strings.TrimSpace(binding.selectedFeatureName())
-			if featureName == "" || featureName == "<none>" {
+			if strings.TrimSpace(binding.value) == "" {
 				continue
 			}
 
@@ -221,35 +252,26 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 
 			if !featureBlocksAdded {
 				lines = append(lines, "")
-				lines = append(lines, "Feature selections")
+				lines = append(lines, "Selections")
 				featureBlocksAdded = true
 			}
 
-			lines = append(lines, fmt.Sprintf("  %s", categoryName))
-			lines = append(lines, fmt.Sprintf("    %s", featureName))
-			lines = append(lines, "")
-		}
-
-		if featureBlocksAdded {
-			for len(lines) > 0 && lines[len(lines)-1] == "" {
-				lines = lines[:len(lines)-1]
-			}
+			lines = append(lines, fmt.Sprintf("  %s: %s", categoryName, binding.value))
 		}
 
 		lines = append(lines, "")
-		lines = append(lines, "Press Enter to scaffold or use ← to adjust previous answers.")
+		lines = append(lines, "After generation")
+		lines = append(lines, fmt.Sprintf("  cd %s", resolvedOutput))
+		lines = append(lines, "  make go")
 
 		return strings.Join(lines, "\n")
 	}
 
-	var summaryContent string
-	summary = summary.
-		Title("Review configuration").
+	reviewNote := huh.NewNote()
+	reviewNote = reviewNote.
+		Title(stepLabel(step, totalSteps, "Review configuration")).
 		DescriptionFunc(func() string {
-			summaryContent = buildSummary()
-			lineCount := strings.Count(summaryContent, "\n") + 1
-			summary.Height(lineCount + 4)
-			return summaryContent
+			return buildSummary()
 		}, struct {
 			AppName    *string
 			ModulePath *string
@@ -261,10 +283,19 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 			OutputDir:  &outputDir,
 			Force:      &force,
 		}).
-		Next(true).
-		NextLabel("🚀 Scaffold project")
+		Height(16)
 
-	groups = append(groups, huh.NewGroup(summary))
+	groups = append(groups, huh.NewGroup(reviewNote))
+	step++
+
+	groups = append(groups, huh.NewGroup(
+		huh.NewConfirm().
+			Title(stepLabel(step, totalSteps, "Ready to scaffold?")).
+			Description("Use Shift+Tab to edit previous answers, or choose Cancel.").
+			Affirmative("Scaffold now").
+			Negative("Cancel").
+			Value(&scaffoldNow),
+	))
 
 	form := huh.NewForm(groups...)
 
@@ -280,6 +311,10 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 			return Result{}, ErrCancelled
 		}
 		return Result{}, err
+	}
+
+	if !scaffoldNow {
+		return Result{}, ErrCancelled
 	}
 
 	appName = strings.TrimSpace(appName)
@@ -306,15 +341,6 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		Selection:  stacks.SelectionFromIDs(selection),
 		Force:      force,
 	}, nil
-}
-
-func (b *featureBinding) selectedFeatureName() string {
-	for _, feature := range b.choices {
-		if feature.ID == b.value {
-			return feature.Name
-		}
-	}
-	return "<none>"
 }
 
 func suggestOutputDir(appName string) string {
@@ -368,4 +394,8 @@ func humanizeBool(value bool) string {
 		return "Yes"
 	}
 	return "No"
+}
+
+func stepLabel(step, total int, title string) string {
+	return fmt.Sprintf("Step %d/%d: %s", step, total, title)
 }

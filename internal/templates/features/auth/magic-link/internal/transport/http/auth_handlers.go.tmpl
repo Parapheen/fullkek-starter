@@ -1,0 +1,146 @@
+package http
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+	"path/filepath"
+	"strings"
+
+	appauth "{{ .ModulePath }}/internal/app/auth"
+)
+
+func (r *Router) login(w http.ResponseWriter, req *http.Request) {
+	if r.authService == nil {
+		http.Error(w, "auth not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	next := req.URL.Query().Get("next")
+	if !isSafeNext(next) {
+		next = ""
+	}
+
+	type viewData struct {
+		Next    string
+		Email   string
+		Message string
+		Error   string
+	}
+	data := viewData{Next: next}
+
+	if req.Method == http.MethodPost {
+		if err := req.ParseForm(); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		email := strings.TrimSpace(req.Form.Get("email"))
+		next = req.Form.Get("next")
+		if !isSafeNext(next) {
+			next = ""
+		}
+		data.Next = next
+		data.Email = email
+
+		resp, err := r.authService.RequestMagicLink(req.Context(), appauth.RequestMagicLinkRequest{Email: email, Next: next})
+		if err != nil {
+			data.Error = err.Error()
+		} else {
+			slog.Info("magic link generated", "email", email, "url", resp.VerifyURL)
+			data.Message = "Magic link generated. Check server logs in development."
+			data.Email = ""
+		}
+	}
+
+	if err := renderTemplate(w, req, filepath.Join("web", "templates", "pages", "login.html"), data); err != nil {
+		http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (r *Router) verifyMagicLink(w http.ResponseWriter, req *http.Request) {
+	if r.authService == nil {
+		http.Error(w, "auth not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	token := req.URL.Query().Get("token")
+	next := req.URL.Query().Get("next")
+	if !isSafeNext(next) {
+		next = ""
+	}
+
+	resp, err := r.authService.VerifyMagicLink(req.Context(), appauth.VerifyMagicLinkRequest{Token: token})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("auth error: %v", err), http.StatusUnauthorized)
+		return
+	}
+	if resp.Session == nil {
+		http.Error(w, "auth error: session not created", http.StatusUnauthorized)
+		return
+	}
+
+	SetCookie(w, SessionCookieName(), resp.Session.ID, resp.Session.ExpiresAt)
+	dest := "/profile"
+	if isSafeNext(next) {
+		dest = next
+	}
+	http.Redirect(w, req, dest, http.StatusFound)
+}
+
+func (r *Router) profile(w http.ResponseWriter, req *http.Request) {
+	if r.authService == nil {
+		http.Error(w, "auth not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	sid := ReadCookie(req, SessionCookieName())
+	current, _ := r.authService.CurrentUser(req.Context(), appauth.CurrentUserRequest{SessionID: sid})
+	if current.User == nil {
+		http.Redirect(w, req, "/login", http.StatusFound)
+		return
+	}
+
+	data := struct {
+		Name      string
+		Email     string
+		AvatarURL string
+		ID        string
+	}{
+		Name:      current.User.Name,
+		Email:     current.User.Email,
+		AvatarURL: current.User.AvatarURL,
+		ID:        current.User.ID,
+	}
+
+	if err := renderTemplate(w, req, filepath.Join("web", "templates", "pages", "profile.html"), data); err != nil {
+		http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (r *Router) logout(w http.ResponseWriter, req *http.Request) {
+	sid := ReadCookie(req, SessionCookieName())
+	if r.authService != nil {
+		_, _ = r.authService.Logout(req.Context(), appauth.LogoutRequest{SessionID: sid})
+	}
+	ClearCookie(w, SessionCookieName())
+	http.Redirect(w, req, "/", http.StatusFound)
+}
+
+func isSafeNext(s string) bool {
+	if s == "" {
+		return false
+	}
+	if strings.Contains(s, "://") {
+		return false
+	}
+	if !strings.HasPrefix(s, "/") {
+		return false
+	}
+	if strings.HasPrefix(s, "//") {
+		return false
+	}
+	return true
+}

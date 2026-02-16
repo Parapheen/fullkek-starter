@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 
@@ -87,6 +89,26 @@ func (g *Generator) Generate(ctx context.Context, opts Options) error {
 		if err := g.renderTemplate(root, tmpl, data); err != nil {
 			return err
 		}
+	}
+
+	if err := initGitRepository(ctx, root); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func initGitRepository(ctx context.Context, root string) error {
+	command := exec.CommandContext(ctx, "git", "init")
+	command.Dir = root
+
+	output, err := command.CombinedOutput()
+	if err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed == "" {
+			return fmt.Errorf("initialize git repository: %w", err)
+		}
+		return fmt.Errorf("initialize git repository: %w: %s", err, trimmed)
 	}
 
 	return nil

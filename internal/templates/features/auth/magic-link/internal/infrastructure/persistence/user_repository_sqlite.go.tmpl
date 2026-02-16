@@ -1,0 +1,70 @@
+package persistence
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	domainUser "{{ .ModulePath }}/internal/domain/user"
+)
+
+type SQLiteUserRepository struct {
+	db *sqlx.DB
+}
+
+func NewSQLiteUserRepository(db *sqlx.DB) *SQLiteUserRepository {
+	return &SQLiteUserRepository{db: db}
+}
+
+func (r *SQLiteUserRepository) FindByID(ctx context.Context, id string) (*domainUser.User, error) {
+	const query = `SELECT id, email, name, avatar_url, created_at FROM users WHERE id = ?`
+	return fetchUser(ctx, r.db, query, id)
+}
+
+func (r *SQLiteUserRepository) FindByEmail(ctx context.Context, email string) (*domainUser.User, error) {
+	const query = `SELECT id, email, name, avatar_url, created_at FROM users WHERE lower(email) = lower(?)`
+	return fetchUser(ctx, r.db, query, email)
+}
+
+func (r *SQLiteUserRepository) Create(ctx context.Context, u *domainUser.User) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO users(id, email, name, avatar_url, created_at) VALUES(?, ?, ?, ?, ?)`,
+		u.ID, u.Email, u.Name, u.AvatarURL, u.CreatedAt)
+	return err
+}
+
+func (r *SQLiteUserRepository) Update(ctx context.Context, u *domainUser.User) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE users SET email = ?, name = ?, avatar_url = ? WHERE id = ?`,
+		u.Email, u.Name, u.AvatarURL, u.ID)
+	return err
+}
+
+type dbUser struct {
+	ID        string    `db:"id"`
+	Email     string    `db:"email"`
+	Name      string    `db:"name"`
+	AvatarURL string    `db:"avatar_url"`
+	CreatedAt time.Time `db:"created_at"`
+}
+
+func (u dbUser) toDomain() *domainUser.User {
+	return &domainUser.User{
+		ID:        u.ID,
+		Email:     u.Email,
+		Name:      u.Name,
+		AvatarURL: u.AvatarURL,
+		CreatedAt: u.CreatedAt,
+	}
+}
+
+func fetchUser(ctx context.Context, q sqlx.QueryerContext, query string, args ...any) (*domainUser.User, error) {
+	var row dbUser
+	if err := sqlx.GetContext(ctx, q, &row, query, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return row.toDomain(), nil
+}

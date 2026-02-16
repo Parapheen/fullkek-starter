@@ -1,0 +1,47 @@
+package magiclink
+
+import (
+	"fmt"
+	"time"
+)
+
+type Clock interface {
+	Now() time.Time
+}
+
+type IDGenerator interface {
+	New() (string, error)
+}
+
+type Token struct {
+	ID        string
+	Email     string
+	TokenHash string
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+}
+
+func New(idGen IDGenerator, clock Clock, ttl time.Duration, email, tokenHash string) (*Token, error) {
+	id, err := idGen.New()
+	if err != nil {
+		return nil, fmt.Errorf("generate magic link token id: %w", err)
+	}
+	if email == "" {
+		return nil, fmt.Errorf("email is required")
+	}
+	if tokenHash == "" {
+		return nil, fmt.Errorf("token hash is required")
+	}
+	if ttl <= 0 {
+		ttl = 15 * time.Minute
+	}
+	now := clock.Now()
+	return &Token{
+		ID:        id,
+		Email:     email,
+		TokenHash: tokenHash,
+		CreatedAt: now,
+		ExpiresAt: now.Add(ttl),
+	}, nil
+}

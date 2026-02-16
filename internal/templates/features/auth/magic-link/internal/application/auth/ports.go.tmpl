@@ -1,0 +1,36 @@
+package auth
+
+import (
+	"context"
+	"time"
+
+	domainMagicLink "{{ .ModulePath }}/internal/domain/magiclink"
+	domainSession "{{ .ModulePath }}/internal/domain/session"
+	domainUser "{{ .ModulePath }}/internal/domain/user"
+)
+
+type UserRepository interface {
+	FindByID(ctx context.Context, id string) (*domainUser.User, error)
+	FindByEmail(ctx context.Context, email string) (*domainUser.User, error)
+	Create(ctx context.Context, u *domainUser.User) error
+	Update(ctx context.Context, u *domainUser.User) error
+}
+
+type SessionRepository interface {
+	Create(ctx context.Context, s *domainSession.Session) error
+	FindByID(ctx context.Context, id string) (*domainSession.Session, error)
+	Touch(ctx context.Context, id string, when time.Time) error
+	Revoke(ctx context.Context, id string, when time.Time) error
+	DeleteByUser(ctx context.Context, userID string) error
+	ListByUser(ctx context.Context, userID string) ([]*domainSession.Session, error)
+}
+
+type MagicLinkTokenRepository interface {
+	Create(ctx context.Context, token *domainMagicLink.Token) error
+	FindByTokenHash(ctx context.Context, tokenHash string) (*domainMagicLink.Token, error)
+	MarkUsed(ctx context.Context, id string, when time.Time) error
+}
+
+type Clock interface {
+	Now() time.Time
+}
