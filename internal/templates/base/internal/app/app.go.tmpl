@@ -10,8 +10,10 @@ import (
     persistence "{{ .ModulePath }}/internal/infrastructure/persistence"
     {{- end }}
     httptransport "{{ .ModulePath }}/internal/transport/http"
+    {{- if .Stack.HasFeature "database-sqlite" }}
     env "{{ .ModulePath }}/internal/pkg/env"
-	{{- if .Stack.HasFeature "auth-github-oauth2" }}
+    {{- end }}
+	{{- if .Stack.HasFeature "auth-oauth2" }}
 	"fmt"
 	"strings"
 
@@ -22,6 +24,12 @@ import (
     "strings"
 
     appauth "{{ .ModulePath }}/internal/app/auth"
+    {{- end }}
+    {{- if and (.Stack.HasFeature "email-smtp") (.Stack.HasFeature "auth-magic-link") }}
+    emailinfra "{{ .ModulePath }}/internal/infrastructure/email"
+    {{- end }}
+    {{- if .Stack.HasFeature "payments-yookassa" }}
+    paymentsinfra "{{ .ModulePath }}/internal/infrastructure/payments"
     {{- end }}
 )
 
@@ -51,25 +59,50 @@ func New(ctx context.Context) (*App, error) {
 	}
 
     slog.Info("Connected to SQLite database")
+    srv.Router().SetDB(db)
 
-	{{- if .Stack.HasFeature "auth-github-oauth2" }}
+	{{- if .Stack.HasFeature "auth-oauth2" }}
 	ttl := httptransport.SessionTTL()
-	clientID := strings.TrimSpace(env.Get("GITHUB_CLIENT_ID", ""))
-	if clientID == "" {
-		return nil, fmt.Errorf("github oauth is enabled but GITHUB_CLIENT_ID is empty; set it in .env")
-	}
-	clientSecret := strings.TrimSpace(env.Get("GITHUB_CLIENT_SECRET", ""))
-	if clientSecret == "" {
-		return nil, fmt.Errorf("github oauth is enabled but GITHUB_CLIENT_SECRET is empty; set it in .env")
-	}
 	callbackBase := strings.TrimRight(env.Get("OAUTH_CALLBACK_BASE", "http://localhost:3333"), "/")
 	if callbackBase == "" {
 		callbackBase = "http://localhost:3333"
     }
-    callbackURL := callbackBase + "/auth/github/callback"
-    providers := []appauth.OAuthProvider{
-        oauthinfra.NewGithubProvider(clientID, clientSecret, callbackURL, nil),
-    }
+
+    providers := []appauth.OAuthProvider{}
+    {{- if .Stack.HasFeature "oauth-github" }}
+	githubClientID := strings.TrimSpace(env.Get("GITHUB_CLIENT_ID", ""))
+	if githubClientID == "" {
+		return nil, fmt.Errorf("github oauth is enabled but GITHUB_CLIENT_ID is empty; set it in .env")
+	}
+	githubClientSecret := strings.TrimSpace(env.Get("GITHUB_CLIENT_SECRET", ""))
+	if githubClientSecret == "" {
+		return nil, fmt.Errorf("github oauth is enabled but GITHUB_CLIENT_SECRET is empty; set it in .env")
+	}
+    providers = append(providers, oauthinfra.NewGithubProvider(githubClientID, githubClientSecret, callbackBase+"/auth/github/callback", nil))
+    {{- end }}
+    {{- if .Stack.HasFeature "oauth-google" }}
+	googleClientID := strings.TrimSpace(env.Get("GOOGLE_CLIENT_ID", ""))
+	if googleClientID == "" {
+		return nil, fmt.Errorf("google oauth is enabled but GOOGLE_CLIENT_ID is empty; set it in .env")
+	}
+	googleClientSecret := strings.TrimSpace(env.Get("GOOGLE_CLIENT_SECRET", ""))
+	if googleClientSecret == "" {
+		return nil, fmt.Errorf("google oauth is enabled but GOOGLE_CLIENT_SECRET is empty; set it in .env")
+	}
+    providers = append(providers, oauthinfra.NewGoogleProvider(googleClientID, googleClientSecret, callbackBase+"/auth/google/callback", nil))
+    {{- end }}
+    {{- if .Stack.HasFeature "oauth-yandex" }}
+	yandexClientID := strings.TrimSpace(env.Get("YANDEX_CLIENT_ID", ""))
+	if yandexClientID == "" {
+		return nil, fmt.Errorf("yandex oauth is enabled but YANDEX_CLIENT_ID is empty; set it in .env")
+	}
+	yandexClientSecret := strings.TrimSpace(env.Get("YANDEX_CLIENT_SECRET", ""))
+	if yandexClientSecret == "" {
+		return nil, fmt.Errorf("yandex oauth is enabled but YANDEX_CLIENT_SECRET is empty; set it in .env")
+	}
+    providers = append(providers, oauthinfra.NewYandexProvider(yandexClientID, yandexClientSecret, callbackBase+"/auth/yandex/callback", nil))
+    {{- end }}
+
     users := persistence.NewSQLiteUserRepository(db)
     sessions := persistence.NewSQLiteSessionRepository(db)
     authService := appauth.NewService(users, sessions, providers, appauth.SystemClock{}, ttl)
@@ -86,7 +119,26 @@ func New(ctx context.Context) (*App, error) {
     sessions := persistence.NewSQLiteSessionRepository(db)
     tokens := persistence.NewSQLiteMagicLinkTokenRepository(db)
     authService := appauth.NewService(users, sessions, tokens, appauth.SystemClock{}, ttl, httptransport.MagicLinkTTL(), baseURL)
+    {{- if .Stack.HasFeature "email-smtp" }}
+    emailSender := emailinfra.NewSMTPSender(
+        env.Get("SMTP_HOST", "localhost"),
+        env.Get("SMTP_PORT", "587"),
+        env.Get("SMTP_USERNAME", ""),
+        env.Get("SMTP_PASSWORD", ""),
+        env.Get("SMTP_FROM", "noreply@localhost"),
+    )
+    authService.SetEmailSender(emailSender)
+    {{- end }}
     srv.Router().SetAuthService(authService)
+    {{- end }}
+
+    {{- if .Stack.HasFeature "payments-yookassa" }}
+    paymentClient := paymentsinfra.NewYookassaClient(
+        env.Get("YOOKASSA_SHOP_ID", ""),
+        env.Get("YOOKASSA_SECRET_KEY", ""),
+    )
+    paymentRepo := persistence.NewSQLitePaymentRepository(db)
+    srv.Router().SetPayments(paymentClient, paymentRepo)
     {{- end }}
 
     return &App{server: srv, db: db}, nil

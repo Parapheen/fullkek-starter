@@ -1,0 +1,106 @@
+package payments
+
+import (
+    "bytes"
+    "context"
+    "encoding/json"
+    "fmt"
+    "net/http"
+
+    "github.com/google/uuid"
+)
+
+// YookassaClient interacts with the YooKassa API v3.
+type YookassaClient struct {
+    shopID    string
+    secretKey string
+    client    *http.Client
+    baseURL   string
+}
+
+// NewYookassaClient creates a new YooKassa API client.
+func NewYookassaClient(shopID, secretKey string) *YookassaClient {
+    return &YookassaClient{
+        shopID:    shopID,
+        secretKey: secretKey,
+        client:    http.DefaultClient,
+        baseURL:   "https://api.yookassa.ru/v3",
+    }
+}
+
+// CreatePaymentRequest describes a payment creation request.
+type CreatePaymentRequest struct {
+    Amount      int64
+    Currency    string
+    Description string
+    ReturnURL   string
+}
+
+// CreatePaymentResponse describes the result of payment creation.
+type CreatePaymentResponse struct {
+    ID              string
+    ConfirmationURL string
+    Status          string
+}
+
+// CreatePayment creates a new payment at YooKassa and returns the confirmation URL.
+func (c *YookassaClient) CreatePayment(ctx context.Context, req CreatePaymentRequest) (CreatePaymentResponse, error) {
+    amountValue := fmt.Sprintf("%d.%02d", req.Amount/100, req.Amount%100)
+    if req.Currency == "" {
+        req.Currency = "RUB"
+    }
+
+    body := map[string]any{
+        "amount": map[string]string{
+            "value":    amountValue,
+            "currency": req.Currency,
+        },
+        "confirmation": map[string]string{
+            "type":       "redirect",
+            "return_url": req.ReturnURL,
+        },
+        "capture":     true,
+        "description": req.Description,
+    }
+
+    jsonBody, err := json.Marshal(body)
+    if err != nil {
+        return CreatePaymentResponse{}, fmt.Errorf("marshal payment: %w", err)
+    }
+
+    httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/payments", bytes.NewReader(jsonBody))
+    if err != nil {
+        return CreatePaymentResponse{}, fmt.Errorf("create request: %w", err)
+    }
+
+    httpReq.SetBasicAuth(c.shopID, c.secretKey)
+    httpReq.Header.Set("Content-Type", "application/json")
+    httpReq.Header.Set("Idempotence-Key", uuid.New().String())
+
+    resp, err := c.client.Do(httpReq)
+    if err != nil {
+        return CreatePaymentResponse{}, fmt.Errorf("yookassa request: %w", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+        return CreatePaymentResponse{}, fmt.Errorf("yookassa: status %d", resp.StatusCode)
+    }
+
+    var result struct {
+        ID           string `json:"id"`
+        Status       string `json:"status"`
+        Confirmation struct {
+            ConfirmationURL string `json:"confirmation_url"`
+        } `json:"confirmation"`
+    }
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return CreatePaymentResponse{}, fmt.Errorf("decode response: %w", err)
+    }
+
+    return CreatePaymentResponse{
+        ID:              result.ID,
+        ConfirmationURL: result.Confirmation.ConfirmationURL,
+        Status:          result.Status,
+    }, nil
+}

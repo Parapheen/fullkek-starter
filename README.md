@@ -94,10 +94,21 @@ If `--no-ui` is used and `[app-name]` is omitted, the command will error. Withou
 - Authentication (optional):
 
   - `auth-none`: Skip OAuth providers
-  - `auth-github-oauth2`: GitHub OAuth2 login flow
+  - `auth-oauth2`: OAuth2 login flow (requires at least one provider)
   - `auth-magic-link`: Passwordless magic-link flow (development link delivery via logs)
 
-`auth-github-oauth2` and `auth-magic-link` require `database-sqlite`. The CLI
+  OAuth providers:
+
+  - `oauth-github`: GitHub OAuth2 provider
+  - `oauth-google`: Google OAuth2 provider
+  - `oauth-yandex`: Yandex OAuth2 provider
+
+- Payments (optional):
+
+  - `payments-none`: Skip payment integration
+  - `payments-yookassa`: YooKassa checkout integration
+
+`auth-oauth2`, `auth-magic-link`, and `payments-yookassa` require `database-sqlite`. The CLI
 validates this and will show a clear error with how to fix the selection.
 
 ## License

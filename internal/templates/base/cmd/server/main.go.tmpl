@@ -4,6 +4,7 @@ import (
     "context"
     "log/slog"
     "os"
+    "strings"
 
     _ "github.com/joho/godotenv/autoload"
 
@@ -11,7 +12,7 @@ import (
 )
 
 func main() {
-    logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+    logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: parseLogLevel(os.Getenv("LOG_LEVEL"))}))
     slog.SetDefault(logger)
 
     ctx := context.Background()
@@ -28,3 +29,15 @@ func main() {
     }
 }
 
+func parseLogLevel(s string) slog.Level {
+    switch strings.ToLower(strings.TrimSpace(s)) {
+    case "debug":
+        return slog.LevelDebug
+    case "warn", "warning":
+        return slog.LevelWarn
+    case "error":
+        return slog.LevelError
+    default:
+        return slog.LevelInfo
+    }
+}

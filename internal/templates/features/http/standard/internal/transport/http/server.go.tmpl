@@ -27,6 +27,9 @@ func NewServer(cfg Config) *Server {
     }
 
     router := NewRouter()
+    {{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    router.StartLimiterCleanup()
+    {{- end }}
     mux := http.NewServeMux()
     router.Register(mux)
 
@@ -54,7 +57,9 @@ func NewServer(cfg Config) *Server {
     })
     handler = csrf
 
-    {{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    handler = secureHeaders(handler)
+
+    {{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
     handler = router.AuthMiddleware(handler)
     {{- end }}
 
@@ -100,4 +105,14 @@ func (s *Server) Listen(ctx context.Context) error {
 // Router exposes the configured router instance.
 func (s *Server) Router() *Router {
     return s.router
+}
+
+func secureHeaders(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("X-Content-Type-Options", "nosniff")
+        w.Header().Set("X-Frame-Options", "DENY")
+        w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+        w.Header().Set("X-XSS-Protection", "0")
+        next.ServeHTTP(w, r)
+    })
 }

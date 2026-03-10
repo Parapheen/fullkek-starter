@@ -1,0 +1,56 @@
+package payment
+
+import (
+    "fmt"
+    "time"
+)
+
+const (
+    StatusPending           = "pending"
+    StatusWaitingForCapture = "waiting_for_capture"
+    StatusSucceeded         = "succeeded"
+    StatusCanceled          = "canceled"
+)
+
+// Payment represents a monetary transaction in the system.
+type Payment struct {
+    ID          string
+    UserID      string
+    YookassaID  string
+    Amount      int64 // kopecks
+    Currency    string
+    Status      string
+    Description string
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
+}
+
+type IDGenerator interface {
+    New() (string, error)
+}
+
+type Clock interface {
+    Now() time.Time
+}
+
+// New constructs a payment with sensible defaults.
+func New(idGen IDGenerator, clock Clock, userID string, amount int64, currency, description string) (*Payment, error) {
+    id, err := idGen.New()
+    if err != nil {
+        return nil, fmt.Errorf("generate payment id: %w", err)
+    }
+    now := clock.Now()
+    if currency == "" {
+        currency = "RUB"
+    }
+    return &Payment{
+        ID:          id,
+        UserID:      userID,
+        Amount:      amount,
+        Currency:    currency,
+        Status:      StatusPending,
+        Description: description,
+        CreatedAt:   now,
+        UpdatedAt:   now,
+    }, nil
+}

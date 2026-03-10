@@ -95,6 +95,12 @@ func (g *Generator) Generate(ctx context.Context, opts Options) error {
 		return err
 	}
 
+	if err := runGoModTidy(ctx, root); err != nil {
+		// Keep scaffolding successful even when dependency resolution is unavailable
+		// (for example offline or behind a restricted proxy). The generated project
+		// can still be used after running `go mod tidy` in a networked environment.
+	}
+
 	return nil
 }
 
@@ -109,6 +115,22 @@ func initGitRepository(ctx context.Context, root string) error {
 			return fmt.Errorf("initialize git repository: %w", err)
 		}
 		return fmt.Errorf("initialize git repository: %w: %s", err, trimmed)
+	}
+
+	return nil
+}
+
+func runGoModTidy(ctx context.Context, root string) error {
+	command := exec.CommandContext(ctx, "go", "mod", "tidy")
+	command.Dir = root
+
+	output, err := command.CombinedOutput()
+	if err != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed == "" {
+			return fmt.Errorf("go mod tidy: %w", err)
+		}
+		return fmt.Errorf("go mod tidy: %w: %s", err, trimmed)
 	}
 
 	return nil

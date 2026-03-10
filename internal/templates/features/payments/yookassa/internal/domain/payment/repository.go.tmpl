@@ -1,0 +1,12 @@
+package payment
+
+import "context"
+
+// Repository defines persistence operations for Payment.
+type Repository interface {
+    Create(ctx context.Context, p *Payment) error
+    FindByID(ctx context.Context, id string) (*Payment, error)
+    FindByYookassaID(ctx context.Context, yookassaID string) (*Payment, error)
+    UpdateStatus(ctx context.Context, id, status, yookassaID string) error
+    ListByUser(ctx context.Context, userID string) ([]*Payment, error)
+}

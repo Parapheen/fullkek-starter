@@ -1,19 +1,36 @@
 package http
 
 import (
+{{- if .Stack.HasFeature "database-sqlite" }}
+    "encoding/json"
+{{- end }}
     "fmt"
     "net/http"
     "path/filepath"
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    "sync"
+    "time"
+{{- end }}
 
     "github.com/go-chi/chi/v5"
 {{- if .Stack.HasFeature "frontend-htmx" }}
     "sync/atomic"
 {{- end }}
-{{- if .Stack.HasFeature "auth-github-oauth2" }}
+{{- if .Stack.HasFeature "database-sqlite" }}
+    "github.com/jmoiron/sqlx"
+{{- end }}
+{{- if .Stack.HasFeature "auth-oauth2" }}
     appauth "{{ .ModulePath }}/internal/app/auth"
 {{- end }}
 {{- if .Stack.HasFeature "auth-magic-link" }}
     appauth "{{ .ModulePath }}/internal/app/auth"
+{{- end }}
+{{- if .Stack.HasFeature "payments-yookassa" }}
+    domainPayment "{{ .ModulePath }}/internal/domain/payment"
+    paymentsinfra "{{ .ModulePath }}/internal/infrastructure/payments"
+{{- end }}
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    "golang.org/x/time/rate"
 {{- end }}
 )
 
@@ -23,8 +40,16 @@ type Router struct {
 {{- if .Stack.HasFeature "frontend-htmx" }}
     exampleCounter atomic.Int64
 {{- end }}
-{{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+{{- if .Stack.HasFeature "database-sqlite" }}
+    db *sqlx.DB
+{{- end }}
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
     authService *appauth.Service
+    limiters    sync.Map
+{{- end }}
+{{- if .Stack.HasFeature "payments-yookassa" }}
+    paymentClient *paymentsinfra.YookassaClient
+    paymentRepo   domainPayment.Repository
 {{- end }}
 }
 
@@ -39,21 +64,36 @@ func (r *Router) Mount(router chi.Router) {
     router.Get("/healthz", r.health)
     router.Post("/demo/echo", r.demoEcho)
 
-    {{- if .Stack.HasFeature "auth-github-oauth2" }}
-    // Auth routes
-    router.Get("/auth/{provider}", r.authStart)
-    router.Get("/auth/{provider}/callback", r.authCallback)
+    {{- if .Stack.HasFeature "auth-oauth2" }}
+    // Auth routes (rate limited)
+    router.Group(func(authRouter chi.Router) {
+        authRouter.Use(r.rateLimitByIP)
+        authRouter.Get("/auth/{provider}", r.authStart)
+        authRouter.Get("/auth/{provider}/callback", r.authCallback)
+        authRouter.Get("/login", r.login)
+    })
     router.Get("/logout", r.logout)
-    router.Get("/login", r.login)
     router.With(r.RequireAuth).Get("/profile", r.profile)
     {{- end }}
 
     {{- if .Stack.HasFeature "auth-magic-link" }}
-    router.Get("/login", r.login)
-    router.Post("/login", r.login)
-    router.Get("/auth/magic/verify", r.verifyMagicLink)
+    // Auth routes (rate limited)
+    router.Group(func(authRouter chi.Router) {
+        authRouter.Use(r.rateLimitByIP)
+        authRouter.Get("/login", r.login)
+        authRouter.Post("/login", r.login)
+        authRouter.Get("/auth/magic/verify", r.verifyMagicLink)
+    })
     router.Get("/logout", r.logout)
     router.With(r.RequireAuth).Get("/profile", r.profile)
+    {{- end }}
+
+    {{- if .Stack.HasFeature "payments-yookassa" }}
+    // Payment routes
+    router.Get("/payments/checkout", r.checkout)
+    router.Post("/payments/checkout", r.checkout)
+    router.Get("/payments/success", r.paymentSuccess)
+    router.Post("/webhooks/yookassa", r.yookassaWebhook)
     {{- end }}
 
 {{- if .Stack.HasFeature "frontend-htmx" }}
@@ -67,7 +107,16 @@ func (r *Router) Mount(router chi.Router) {
 {{- end }}
 }
 
-{{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+{{- if .Stack.HasFeature "database-sqlite" }}
+
+// SetDB injects the database connection into the router for health checks.
+func (r *Router) SetDB(db *sqlx.DB) {
+    r.db = db
+}
+
+{{- end }}
+
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
 
 // SetAuthService injects the authentication service into the router.
 func (r *Router) SetAuthService(svc *appauth.Service) {
@@ -77,7 +126,7 @@ func (r *Router) SetAuthService(svc *appauth.Service) {
 {{- end }}
 
 func (r *Router) home(w http.ResponseWriter, req *http.Request) {
-{{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
     if err := renderPage(w, req, indexPage, nil); err != nil {
         http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
         return
@@ -88,8 +137,24 @@ func (r *Router) home(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Router) health(w http.ResponseWriter, req *http.Request) {
+{{- if .Stack.HasFeature "database-sqlite" }}
+    w.Header().Set("Content-Type", "application/json; charset=utf-8")
+    status := struct {
+        Status string `json:"status"`
+        DB     string `json:"db"`
+    }{Status: "ok", DB: "ok"}
+    if r.db != nil {
+        if err := r.db.PingContext(req.Context()); err != nil {
+            status.Status = "degraded"
+            status.DB = err.Error()
+            w.WriteHeader(http.StatusServiceUnavailable)
+        }
+    }
+    _ = json.NewEncoder(w).Encode(status)
+{{- else }}
     w.Header().Set("Content-Type", "text/plain; charset=utf-8")
     _, _ = w.Write([]byte("ok"))
+{{- end }}
 }
 
 // demoEcho handles a sample POST request and echos a value back.
@@ -230,6 +295,51 @@ func (r *Router) toastSuccess(w http.ResponseWriter, req *http.Request) {
     <button type="button" class="btn btn-sm btn-ghost" data-daisy-toast-dismiss>Dismiss</button>
 </div>`)
     {{- end }}
+}
+
+{{- end }}
+
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+
+type ipLimiter struct {
+    limiter  *rate.Limiter
+    lastSeen time.Time
+}
+
+// rateLimitByIP limits requests to 5 per minute per IP address.
+func (r *Router) rateLimitByIP(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+        ip := req.RemoteAddr
+
+        val, _ := r.limiters.LoadOrStore(ip, &ipLimiter{
+            limiter:  rate.NewLimiter(rate.Every(12*time.Second), 5),
+            lastSeen: time.Now(),
+        })
+        entry := val.(*ipLimiter)
+        entry.lastSeen = time.Now()
+
+        if !entry.limiter.Allow() {
+            http.Error(w, "Too many requests", http.StatusTooManyRequests)
+            return
+        }
+        next.ServeHTTP(w, req)
+    })
+}
+
+// StartLimiterCleanup runs a background goroutine that removes stale rate limiters.
+func (r *Router) StartLimiterCleanup() {
+    go func() {
+        for {
+            time.Sleep(10 * time.Minute)
+            r.limiters.Range(func(key, value any) bool {
+                entry := value.(*ipLimiter)
+                if time.Since(entry.lastSeen) > 10*time.Minute {
+                    r.limiters.Delete(key)
+                }
+                return true
+            })
+        }
+    }()
 }
 
 {{- end }}

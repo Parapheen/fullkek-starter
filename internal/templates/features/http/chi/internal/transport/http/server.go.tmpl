@@ -33,6 +33,7 @@ func NewServer(cfg Config) *Server {
     // Add some useful middleware
     chiRouter.Use(middleware.Logger)
     chiRouter.Use(middleware.Recoverer)
+    chiRouter.Use(secureHeaders)
     // CSRF protection for all POST/PUT/PATCH/DELETE requests.
     chiRouter.Use(func(next http.Handler) http.Handler {
         csrf := nosurf.New(next)
@@ -47,10 +48,13 @@ func NewServer(cfg Config) *Server {
     })
     
     router := NewRouter()
-    {{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    {{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
     chiRouter.Use(router.AuthMiddleware)
     {{- end }}
     router.Mount(chiRouter)
+    {{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    router.StartLimiterCleanup()
+    {{- end }}
 
     staticHandler := http.FileServer(http.Dir("public"))
     chiRouter.NotFound(func(w http.ResponseWriter, req *http.Request) {
@@ -99,4 +103,14 @@ func (s *Server) Listen(ctx context.Context) error {
 // Router exposes the configured router instance.
 func (s *Server) Router() *Router {
     return s.router
+}
+
+func secureHeaders(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("X-Content-Type-Options", "nosniff")
+        w.Header().Set("X-Frame-Options", "DENY")
+        w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+        w.Header().Set("X-XSS-Protection", "0")
+        next.ServeHTTP(w, r)
+    })
 }

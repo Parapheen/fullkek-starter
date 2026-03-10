@@ -34,7 +34,7 @@ func TestValidateSelectionRejectsAuthWithoutSQLite(t *testing.T) {
 		CategoryStyling:  {"styling-tailwind"},
 		CategoryHTTP:     {"http-standard"},
 		CategoryDatabase: {"database-none"},
-		CategoryAuth:     {"auth-github-oauth2"},
+		CategoryAuth:     {"auth-oauth2"},
 	}
 
 	err := ValidateSelection(sel)
@@ -70,7 +70,7 @@ func TestValidateSelectionRejectsMagicLinkWithoutSQLite(t *testing.T) {
 	}
 }
 
-func TestComposeAllowsAuthWithSQLite(t *testing.T) {
+func TestValidateSelectionRejectsOAuth2WithoutProvider(t *testing.T) {
 	t.Parallel()
 
 	sel := Selection{
@@ -78,7 +78,30 @@ func TestComposeAllowsAuthWithSQLite(t *testing.T) {
 		CategoryStyling:  {"styling-tailwind"},
 		CategoryHTTP:     {"http-standard"},
 		CategoryDatabase: {"database-sqlite"},
-		CategoryAuth:     {"auth-github-oauth2"},
+		CategoryAuth:     {"auth-oauth2"},
+	}
+
+	err := ValidateSelection(sel)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+
+	msg := err.Error()
+	if !strings.Contains(msg, "at least one selection in category \"OAuth providers\"") {
+		t.Fatalf("expected oauth provider validation error, got: %s", msg)
+	}
+}
+
+func TestComposeAllowsAuthWithSQLite(t *testing.T) {
+	t.Parallel()
+
+	sel := Selection{
+		CategoryFrontend:       {"frontend-htmx"},
+		CategoryStyling:        {"styling-tailwind"},
+		CategoryHTTP:           {"http-standard"},
+		CategoryDatabase:       {"database-sqlite"},
+		CategoryAuth:           {"auth-oauth2"},
+		CategoryOAuthProviders: {"oauth-github"},
 	}
 
 	stack, err := Compose(sel)
@@ -86,8 +109,8 @@ func TestComposeAllowsAuthWithSQLite(t *testing.T) {
 		t.Fatalf("expected compose to succeed, got: %v", err)
 	}
 
-	if !stack.HasFeature("auth-github-oauth2") {
-		t.Fatal("expected composed stack to include auth-github-oauth2")
+	if !stack.HasFeature("auth-oauth2") {
+		t.Fatal("expected composed stack to include auth-oauth2")
 	}
 }
 

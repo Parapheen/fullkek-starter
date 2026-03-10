@@ -250,6 +250,10 @@ func resolveSelection(sel Selection) ([]resolvedFeature, error) {
 		}
 	}
 
+	if containsFeature(selectedByCategory[CategoryAuth], "auth-oauth2") && len(selectedByCategory[CategoryOAuthProviders]) == 0 {
+		return nil, fmt.Errorf("feature %q requires at least one selection in category %q", "auth-oauth2", categoryIndex[CategoryOAuthProviders].Name)
+	}
+
 	return resolved, nil
 }
 

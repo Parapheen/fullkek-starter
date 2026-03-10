@@ -1,0 +1,8 @@
+package email
+
+import "context"
+
+// EmailSender abstracts sending email messages.
+type EmailSender interface {
+    Send(ctx context.Context, to, subject, htmlBody string) error
+}

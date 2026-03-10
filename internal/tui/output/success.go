@@ -95,7 +95,9 @@ func PrintSuccess(out io.Writer, destination string, stack stacks.Stack) {
 	var steps strings.Builder
 	steps.WriteString(infoStyle.Render("Next steps") + "\n\n")
 	steps.WriteString(fmt.Sprintf("  %s %s\n", stepStyle.Render("1."), valueStyle.Render(fmt.Sprintf("cd %s", destination))))
-	steps.WriteString(fmt.Sprintf("  %s %s\n", stepStyle.Render("2."), valueStyle.Render("make go")))
+	steps.WriteString(fmt.Sprintf("  %s %s\n", stepStyle.Render("2."), valueStyle.Render("Review .env and fill any required credentials")))
+	steps.WriteString(fmt.Sprintf("  %s %s\n", stepStyle.Render("3."), valueStyle.Render("make go")))
+	steps.WriteString(fmt.Sprintf("  %s %s\n", stepStyle.Render("4."), valueStyle.Render("Open http://localhost:3333")))
 	steps.WriteString(fmt.Sprintf("\n  %s %s\n", labelStyle.Render("Read:"), lipgloss.NewStyle().Foreground(mutedColor).Render(fmt.Sprintf("%s/README.md", destination))))
 
 	b.WriteString(boxStyle.Render(steps.String()))

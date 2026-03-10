@@ -106,4 +106,9 @@ var BaseTemplates = []stacks.Template{
 		Destination: "public/assets/scripts/csrf.js",
 		Mode:        0o644,
 	},
+	{
+		Source:      "base/.air.toml.tmpl",
+		Destination: ".air.toml",
+		Mode:        0o644,
+	},
 }

@@ -1,0 +1,79 @@
+package auth
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "net/http"
+
+    appauth "{{ .ModulePath }}/internal/app/auth"
+    "golang.org/x/oauth2"
+)
+
+var yandexEndpoint = oauth2.Endpoint{
+    AuthURL:  "https://oauth.yandex.ru/authorize",
+    TokenURL: "https://oauth.yandex.ru/token",
+}
+
+type YandexProvider struct {
+    cfg    *oauth2.Config
+    client *http.Client
+}
+
+func NewYandexProvider(clientID, clientSecret, redirectURL string, client *http.Client) *YandexProvider {
+    if client == nil { client = http.DefaultClient }
+    return &YandexProvider{
+        cfg: &oauth2.Config{
+            ClientID:     clientID,
+            ClientSecret: clientSecret,
+            RedirectURL:  redirectURL,
+            Scopes:       []string{"login:email", "login:info", "login:avatar"},
+            Endpoint:     yandexEndpoint,
+        },
+        client: client,
+    }
+}
+
+func (p *YandexProvider) ID() string {
+    return "yandex"
+}
+
+func (p *YandexProvider) AuthCodeURL(state string) string {
+    return p.cfg.AuthCodeURL(state, oauth2.AccessTypeOnline)
+}
+
+func (p *YandexProvider) Exchange(ctx context.Context, code string) (string, error) {
+    tok, err := p.cfg.Exchange(ctx, code)
+    if err != nil { return "", err }
+    return tok.AccessToken, nil
+}
+
+func (p *YandexProvider) FetchProfile(ctx context.Context, accessToken string) (appauth.OAuthProfile, error) {
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://login.yandex.ru/info?format=json", nil)
+    if err != nil { return appauth.OAuthProfile{}, err }
+    req.Header.Set("Authorization", "OAuth "+accessToken)
+    resp, err := p.client.Do(req)
+    if err != nil { return appauth.OAuthProfile{}, err }
+    defer resp.Body.Close()
+    if resp.StatusCode != http.StatusOK {
+        return appauth.OAuthProfile{}, fmt.Errorf("yandex login info: status %d", resp.StatusCode)
+    }
+    var payload struct {
+        ID              string `json:"id"`
+        DisplayName     string `json:"display_name"`
+        DefaultEmail    string `json:"default_email"`
+        DefaultAvatarID string `json:"default_avatar_id"`
+    }
+    if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil { return appauth.OAuthProfile{}, err }
+    avatarURL := ""
+    if payload.DefaultAvatarID != "" {
+        avatarURL = fmt.Sprintf("https://avatars.yandex.net/get-yapic/%s/islands-200", payload.DefaultAvatarID)
+    }
+    return appauth.OAuthProfile{
+        Provider:  p.ID(),
+        Subject:   payload.ID,
+        Name:      payload.DisplayName,
+        Email:     payload.DefaultEmail,
+        AvatarURL: avatarURL,
+    }, nil
+}

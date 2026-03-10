@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -17,6 +18,11 @@ import (
 	domainUser "{{ .ModulePath }}/internal/domain/user"
 )
 
+// EmailSender abstracts sending email messages.
+type EmailSender interface {
+	Send(ctx context.Context, to, subject, htmlBody string) error
+}
+
 type Service struct {
 	users        UserRepository
 	sessions     SessionRepository
@@ -25,6 +31,7 @@ type Service struct {
 	sessionTTL   time.Duration
 	magicLinkTTL time.Duration
 	baseURL      string
+	emailSender  EmailSender
 }
 
 type UUIDV7Generator struct{}
@@ -57,6 +64,11 @@ func NewService(users UserRepository, sessions SessionRepository, tokens MagicLi
 		magicLinkTTL: magicLinkTTL,
 		baseURL:      baseURL,
 	}
+}
+
+// SetEmailSender configures the service to send magic links via email.
+func (s *Service) SetEmailSender(sender EmailSender) {
+	s.emailSender = sender
 }
 
 func randomToken(n int) string {
@@ -94,6 +106,17 @@ func (s *Service) RequestMagicLink(ctx context.Context, req RequestMagicLinkRequ
 		verifyURL += "&next=" + url.QueryEscape(req.Next)
 	}
 	resp.VerifyURL = verifyURL
+
+	if s.emailSender != nil {
+		subject := "Your sign-in link"
+		body := fmt.Sprintf(`<p>Click the link below to sign in:</p><p><a href="%s">Sign in</a></p><p>This link expires in %d minutes.</p>`, verifyURL, int(s.magicLinkTTL.Minutes()))
+		if err := s.emailSender.Send(ctx, email, subject, body); err != nil {
+			return resp, fmt.Errorf("send magic link email: %w", err)
+		}
+	} else {
+		slog.Info("Magic link generated (email not configured)", "url", verifyURL, "email", email)
+	}
+
 	return resp, nil
 }
 

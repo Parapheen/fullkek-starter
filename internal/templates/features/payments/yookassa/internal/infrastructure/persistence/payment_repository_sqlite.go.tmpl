@@ -1,0 +1,89 @@
+package persistence
+
+import (
+    "context"
+    "database/sql"
+    "errors"
+    "time"
+
+    "github.com/jmoiron/sqlx"
+    domainPayment "{{ .ModulePath }}/internal/domain/payment"
+)
+
+type SQLitePaymentRepository struct {
+    db *sqlx.DB
+}
+
+func NewSQLitePaymentRepository(db *sqlx.DB) *SQLitePaymentRepository {
+    return &SQLitePaymentRepository{db: db}
+}
+
+func (r *SQLitePaymentRepository) Create(ctx context.Context, p *domainPayment.Payment) error {
+    _, err := r.db.ExecContext(ctx,
+        `INSERT INTO payments(id, user_id, yookassa_id, amount, currency, status, description, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        p.ID, p.UserID, p.YookassaID, p.Amount, p.Currency, p.Status, p.Description, p.CreatedAt, p.UpdatedAt)
+    return err
+}
+
+func (r *SQLitePaymentRepository) FindByID(ctx context.Context, id string) (*domainPayment.Payment, error) {
+    return r.fetchPayment(ctx, `SELECT id, user_id, yookassa_id, amount, currency, status, description, created_at, updated_at FROM payments WHERE id = ?`, id)
+}
+
+func (r *SQLitePaymentRepository) FindByYookassaID(ctx context.Context, yookassaID string) (*domainPayment.Payment, error) {
+    return r.fetchPayment(ctx, `SELECT id, user_id, yookassa_id, amount, currency, status, description, created_at, updated_at FROM payments WHERE yookassa_id = ?`, yookassaID)
+}
+
+func (r *SQLitePaymentRepository) UpdateStatus(ctx context.Context, id, status, yookassaID string) error {
+    _, err := r.db.ExecContext(ctx, `UPDATE payments SET status = ?, yookassa_id = ?, updated_at = ? WHERE id = ?`,
+        status, yookassaID, time.Now().UTC(), id)
+    return err
+}
+
+func (r *SQLitePaymentRepository) ListByUser(ctx context.Context, userID string) ([]*domainPayment.Payment, error) {
+    rows := make([]dbPayment, 0)
+    if err := sqlx.SelectContext(ctx, r.db, &rows, `SELECT id, user_id, yookassa_id, amount, currency, status, description, created_at, updated_at FROM payments WHERE user_id = ? ORDER BY created_at DESC`, userID); err != nil {
+        return nil, err
+    }
+    out := make([]*domainPayment.Payment, 0, len(rows))
+    for _, row := range rows {
+        out = append(out, row.toDomain())
+    }
+    return out, nil
+}
+
+type dbPayment struct {
+    ID          string    `db:"id"`
+    UserID      string    `db:"user_id"`
+    YookassaID  string    `db:"yookassa_id"`
+    Amount      int64     `db:"amount"`
+    Currency    string    `db:"currency"`
+    Status      string    `db:"status"`
+    Description string    `db:"description"`
+    CreatedAt   time.Time `db:"created_at"`
+    UpdatedAt   time.Time `db:"updated_at"`
+}
+
+func (p dbPayment) toDomain() *domainPayment.Payment {
+    return &domainPayment.Payment{
+        ID:          p.ID,
+        UserID:      p.UserID,
+        YookassaID:  p.YookassaID,
+        Amount:      p.Amount,
+        Currency:    p.Currency,
+        Status:      p.Status,
+        Description: p.Description,
+        CreatedAt:   p.CreatedAt,
+        UpdatedAt:   p.UpdatedAt,
+    }
+}
+
+func (r *SQLitePaymentRepository) fetchPayment(ctx context.Context, query string, args ...any) (*domainPayment.Payment, error) {
+    var row dbPayment
+    if err := sqlx.GetContext(ctx, r.db, &row, query, args...); err != nil {
+        if errors.Is(err, sql.ErrNoRows) {
+            return nil, nil
+        }
+        return nil, err
+    }
+    return row.toDomain(), nil
+}

@@ -20,15 +20,19 @@ func newNewCommand() *cobra.Command {
 	defaults := stacks.DefaultSelection()
 
 	var opts struct {
-		modulePath string
-		outputDir  string
-		force      bool
-		noUI       bool
-		frontend   string
-		styling    string
-		http       string
-		database   string
-		auth       string
+		modulePath     string
+		outputDir      string
+		force          bool
+		noUI           bool
+		frontend       string
+		styling        string
+		http           string
+		database       string
+		auth           string
+		oauthProviders string
+		email          string
+		payments       string
+		deploy         string
 	}
 
 	frontendDefault := first(defaults[stacks.CategoryFrontend])
@@ -36,6 +40,9 @@ func newNewCommand() *cobra.Command {
 	httpDefault := first(defaults[stacks.CategoryHTTP])
 	databaseDefault := first(defaults[stacks.CategoryDatabase])
 	authDefault := first(defaults[stacks.CategoryAuth])
+	emailDefault := first(defaults[stacks.CategoryEmail])
+	paymentsDefault := first(defaults[stacks.CategoryPayments])
+	deployDefault := first(defaults[stacks.CategoryDeploy])
 
 	cmd := &cobra.Command{
 		Use:   "new [app-name]",
@@ -55,8 +62,29 @@ func newNewCommand() *cobra.Command {
 					stacks.CategoryHTTP:     opts.http,
 					stacks.CategoryDatabase: opts.database,
 					stacks.CategoryAuth:     opts.auth,
+					stacks.CategoryEmail:    opts.email,
+					stacks.CategoryPayments: opts.payments,
+					stacks.CategoryDeploy:   opts.deploy,
 				}),
 			)
+
+			// Parse comma-separated OAuth providers
+			if opts.oauthProviders != "" {
+				providers := strings.Split(opts.oauthProviders, ",")
+				providerIDs := make([]string, 0, len(providers))
+				for _, p := range providers {
+					p = strings.TrimSpace(p)
+					if p != "" {
+						if !strings.HasPrefix(p, "oauth-") {
+							p = "oauth-" + p
+						}
+						providerIDs = append(providerIDs, p)
+					}
+				}
+				if len(providerIDs) > 0 {
+					flagSelection[stacks.CategoryOAuthProviders] = providerIDs
+				}
+			}
 
 			selection := stacks.CloneSelection(flagSelection)
 
@@ -156,12 +184,19 @@ func newNewCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.http, "http", httpDefault, "HTTP framework feature identifier")
 	cmd.Flags().StringVar(&opts.database, "database", databaseDefault, "database feature identifier")
 	cmd.Flags().StringVar(&opts.auth, "auth", authDefault, "authentication feature identifier")
+	cmd.Flags().StringVar(&opts.oauthProviders, "oauth-providers", "", "comma-separated OAuth providers (github,google,yandex)")
+	cmd.Flags().StringVar(&opts.email, "email", emailDefault, "email sending feature identifier")
+	cmd.Flags().StringVar(&opts.payments, "payments", paymentsDefault, "payment processing feature identifier")
+	cmd.Flags().StringVar(&opts.deploy, "deploy", deployDefault, "deployment feature identifier")
 
 	registerFeatureCompletion(cmd, "frontend", stacks.CategoryFrontend)
 	registerFeatureCompletion(cmd, "styling", stacks.CategoryStyling)
 	registerFeatureCompletion(cmd, "http", stacks.CategoryHTTP)
 	registerFeatureCompletion(cmd, "database", stacks.CategoryDatabase)
 	registerFeatureCompletion(cmd, "auth", stacks.CategoryAuth)
+	registerFeatureCompletion(cmd, "email", stacks.CategoryEmail)
+	registerFeatureCompletion(cmd, "payments", stacks.CategoryPayments)
+	registerFeatureCompletion(cmd, "deploy", stacks.CategoryDeploy)
 
 	return cmd
 }
@@ -242,7 +277,9 @@ func printNextSteps(out io.Writer, destination string, stack stacks.Stack) {
 
 	fmt.Fprintln(out, "\nNext steps:")
 	fmt.Fprintf(out, "  1. cd %s\n", destination)
-	fmt.Fprintln(out, "  2. make go")
+	fmt.Fprintln(out, "  2. Review .env and fill any required credentials")
+	fmt.Fprintln(out, "  3. make go")
+	fmt.Fprintln(out, "  4. Open http://localhost:3333")
 	fmt.Fprintf(out, "\nReview %s/README.md for detailed guidance.\n", destination)
 }
 

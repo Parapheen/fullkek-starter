@@ -1,0 +1,19 @@
+{{- if .Stack.HasFeature "database-sqlite" -}}
+-- +goose Up
+CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT '',
+    yookassa_id TEXT UNIQUE,
+    amount INTEGER NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'RUB',
+    status TEXT NOT NULL DEFAULT 'pending',
+    description TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+
+-- +goose Down
+DROP TABLE IF EXISTS payments;
+{{- end -}}

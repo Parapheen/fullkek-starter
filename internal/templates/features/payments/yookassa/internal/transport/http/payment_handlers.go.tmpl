@@ -1,0 +1,218 @@
+package http
+
+import (
+    "encoding/json"
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    "fmt"
+{{- end }}
+    "log/slog"
+    "net"
+    "net/netip"
+    "net/http"
+    "os"
+    "path/filepath"
+    "strconv"
+    "time"
+
+    "github.com/google/uuid"
+
+    domainPayment "{{ .ModulePath }}/internal/domain/payment"
+    paymentsinfra "{{ .ModulePath }}/internal/infrastructure/payments"
+)
+
+var yookassaWebhookAllowedPrefixes = mustParseYookassaWebhookPrefixes([]string{
+    "185.71.76.0/27",
+    "185.71.77.0/27",
+    "77.75.153.0/25",
+    "77.75.156.11/32",
+    "77.75.156.35/32",
+    "77.75.154.128/25",
+    "2a02:5180::/32",
+})
+
+// SetPayments injects the payment client and repository into the router.
+func (r *Router) SetPayments(client *paymentsinfra.YookassaClient, repo domainPayment.Repository) {
+    r.paymentClient = client
+    r.paymentRepo = repo
+}
+
+// checkout creates a payment and redirects to YooKassa.
+func (r *Router) checkout(w http.ResponseWriter, req *http.Request) {
+    if req.Method == http.MethodGet {
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+        if err := renderPage(w, req, filepath.Join("web", "templates", "pages", "checkout.html"), nil); err != nil {
+            http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
+        }
+{{- else }}
+        http.ServeFile(w, req, filepath.Join("web", "templates", "pages", "checkout.html"))
+{{- end }}
+        return
+    }
+    if req.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+    if err := req.ParseForm(); err != nil {
+        http.Error(w, "Bad request", http.StatusBadRequest)
+        return
+    }
+
+    amountStr := req.FormValue("amount")
+    amount, err := strconv.ParseInt(amountStr, 10, 64)
+    if err != nil || amount <= 0 {
+        http.Error(w, "Invalid amount", http.StatusBadRequest)
+        return
+    }
+
+    description := req.FormValue("description")
+    if description == "" {
+        description = "Payment"
+    }
+
+    returnURL := os.Getenv("YOOKASSA_RETURN_URL")
+    if returnURL == "" {
+        returnURL = "http://localhost:3333"
+    }
+
+    now := time.Now().UTC()
+    payment := &domainPayment.Payment{
+        ID:          uuid.New().String(),
+        Amount:      amount,
+        Currency:    "RUB",
+        Status:      domainPayment.StatusPending,
+        Description: description,
+        CreatedAt:   now,
+        UpdatedAt:   now,
+    }
+
+    result, err := r.paymentClient.CreatePayment(req.Context(), paymentsinfra.CreatePaymentRequest{
+        Amount:      amount,
+        Currency:    "RUB",
+        Description: description,
+        ReturnURL:   returnURL + "/payments/success",
+    })
+    if err != nil {
+        slog.Error("create yookassa payment", "err", err)
+        http.Error(w, "Payment error", http.StatusInternalServerError)
+        return
+    }
+
+    payment.YookassaID = result.ID
+    payment.Status = result.Status
+    if err := r.paymentRepo.Create(req.Context(), payment); err != nil {
+        slog.Error("save payment", "err", err)
+        http.Error(w, "Internal error", http.StatusInternalServerError)
+        return
+    }
+
+    http.Redirect(w, req, result.ConfirmationURL, http.StatusFound)
+}
+
+// paymentSuccess renders the success return page.
+func (r *Router) paymentSuccess(w http.ResponseWriter, req *http.Request) {
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    if err := renderPage(w, req, filepath.Join("web", "templates", "pages", "payment_success.html"), nil); err != nil {
+        http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
+    }
+{{- else }}
+    http.ServeFile(w, req, filepath.Join("web", "templates", "pages", "payment_success.html"))
+{{- end }}
+}
+
+// yookassaWebhook handles YooKassa payment notifications.
+func (r *Router) yookassaWebhook(w http.ResponseWriter, req *http.Request) {
+    if req.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    remoteIP, err := remoteAddrIP(req.RemoteAddr)
+    if err != nil {
+        slog.Warn("reject yookassa webhook with invalid remote address", "remote_addr", req.RemoteAddr, "err", err)
+        http.Error(w, "Forbidden", http.StatusForbidden)
+        return
+    }
+    if !isAllowedYookassaWebhookIP(remoteIP) {
+        slog.Warn("reject yookassa webhook from unexpected ip", "remote_ip", remoteIP.String())
+        http.Error(w, "Forbidden", http.StatusForbidden)
+        return
+    }
+
+    var notification struct {
+        Type   string `json:"type"`
+        Event  string `json:"event"`
+        Object struct {
+            ID     string `json:"id"`
+            Status string `json:"status"`
+        } `json:"object"`
+    }
+
+    if err := json.NewDecoder(req.Body).Decode(&notification); err != nil {
+        http.Error(w, "Bad request", http.StatusBadRequest)
+        return
+    }
+
+    if notification.Object.ID == "" {
+        http.Error(w, "Missing payment ID", http.StatusBadRequest)
+        return
+    }
+
+    payment, err := r.paymentRepo.FindByYookassaID(req.Context(), notification.Object.ID)
+    if err != nil {
+        slog.Error("find payment by yookassa id", "err", err)
+        http.Error(w, "Internal error", http.StatusInternalServerError)
+        return
+    }
+    if payment == nil {
+        slog.Warn("payment not found for webhook", "yookassa_id", notification.Object.ID)
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+
+    if err := r.paymentRepo.UpdateStatus(req.Context(), payment.ID, notification.Object.Status, notification.Object.ID); err != nil {
+        slog.Error("update payment status", "err", err)
+        http.Error(w, "Internal error", http.StatusInternalServerError)
+        return
+    }
+
+    slog.Info("payment webhook processed", "payment_id", payment.ID, "status", notification.Object.Status)
+    w.WriteHeader(http.StatusOK)
+}
+
+func remoteAddrIP(remoteAddr string) (netip.Addr, error) {
+    host, _, err := net.SplitHostPort(remoteAddr)
+    if err != nil {
+        host = remoteAddr
+    }
+
+    addr, err := netip.ParseAddr(host)
+    if err != nil {
+        return netip.Addr{}, err
+    }
+
+    return addr.Unmap(), nil
+}
+
+func isAllowedYookassaWebhookIP(addr netip.Addr) bool {
+    normalized := addr.Unmap()
+    for _, prefix := range yookassaWebhookAllowedPrefixes {
+        if prefix.Contains(normalized) {
+            return true
+        }
+    }
+
+    return false
+}
+
+func mustParseYookassaWebhookPrefixes(values []string) []netip.Prefix {
+    prefixes := make([]netip.Prefix, 0, len(values))
+    for _, value := range values {
+        prefix, err := netip.ParsePrefix(value)
+        if err != nil {
+            panic(err)
+        }
+        prefixes = append(prefixes, prefix)
+    }
+
+    return prefixes
+}

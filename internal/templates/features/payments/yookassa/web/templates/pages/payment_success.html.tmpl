@@ -1,0 +1,26 @@
+{{- $lb := "{{" -}}
+{{- $rb := "}}" -}}
+{{ printf "%s define \"title\" %sPayment successful · %s%s end %s\n" $lb $rb .AppName $lb $rb }}
+{{ printf "%s define \"body_class\" %s" $lb $rb }}{{ if .Stack.HasFeature "styling-daisyui" }}min-h-screen bg-base-200 text-base-content{{ else }}min-h-screen bg-slate-50 text-slate-900{{ end }}{{ printf "%s end %s\n" $lb $rb }}
+{{ printf "%s define \"content\" %s\n" $lb $rb }}
+  {{- if .Stack.HasFeature "styling-daisyui" }}
+    <main class="mx-auto flex max-w-md flex-col gap-8 px-6 py-16 text-center">
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body gap-4">
+          <h1 class="text-3xl font-black text-success">Payment successful</h1>
+          <p class="opacity-70">Your payment has been processed. Thank you!</p>
+          <a href="/" class="btn btn-primary">Back to home</a>
+        </div>
+      </div>
+    </main>
+  {{- else }}
+    <main class="mx-auto flex max-w-md flex-col gap-8 px-6 py-16 text-center">
+      <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm space-y-4">
+        <h1 class="text-3xl font-semibold text-emerald-600">Payment successful</h1>
+        <p class="text-sm text-slate-600">Your payment has been processed. Thank you!</p>
+        <a href="/" class="inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition">Back to home</a>
+      </div>
+    </main>
+  {{- end }}
+{{ printf "%s end %s\n" $lb $rb }}
+{{ printf "%s template \"base\" . %s\n" $lb $rb }}

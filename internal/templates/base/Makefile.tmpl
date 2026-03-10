@@ -1,4 +1,4 @@
-.PHONY: help dev build run go test clean {{if has "Tailwind" .Stack.Tags}} tailwind-install tailwind-watch tailwind-build tailwind-ensure{{end}}{{if .Stack.HasFeature "database-sqlite"}} goose-install migrate-create migrate-up migrate-down migrate-status{{end}}
+.PHONY: help dev build run go test clean air-install air-ensure{{if has "Tailwind" .Stack.Tags}} tailwind-install tailwind-watch tailwind-build tailwind-ensure{{end}}{{if .Stack.HasFeature "database-sqlite"}} goose-install migrate-create migrate-up migrate-down migrate-status{{end}}{{if .Stack.HasFeature "deploy-ansible"}} deploy{{end}}
 
 APP_URL ?= http://localhost:3333
 
@@ -6,7 +6,7 @@ APP_URL ?= http://localhost:3333
 help:
 	@echo "{{ .AppName }} - Available commands:"
 	@echo ""
-	@echo "  make dev              - Run development server with auto-reload"
+	@echo "  make dev              - Run development server with hot reload (air)"
 
 {{- if has "Tailwind" .Stack.Tags }}
 	@echo "  make go               - Start development server with Tailwind watch"
@@ -30,11 +30,10 @@ help:
 	@echo "  make tailwind-watch   - Watch and rebuild Tailwind CSS on changes"
 	@echo "  make tailwind-build   - Build Tailwind CSS once"{{end}}
 
-# Development server
-dev:
-	@$(MAKE) --no-print-directory >/dev/null 2>&1 || true
-	@echo "Starting development server..."
-	go run ./cmd/server
+# Development server with hot reload (air)
+dev: air-ensure
+	@echo "Starting development server with hot reload..."
+	./bin/air
 
 # Development server with asset pipeline
 go:{{if has "Tailwind" .Stack.Tags}} tailwind-ensure{{end}}
@@ -97,6 +96,19 @@ go:{{if has "Tailwind" .Stack.Tags}} tailwind-ensure{{end}}
 	go run ./cmd/server
 {{- end }}
 
+# Install air for hot reload
+air-install:
+	@echo "Installing air..."
+	@mkdir -p bin
+	@GOBIN=$(PWD)/bin go install github.com/air-verse/air@latest
+
+# Ensure air binary is installed
+air-ensure:
+	@if [ ! -f ./bin/air ]; then \
+		echo "Air binary not found. Installing..."; \
+		$(MAKE) air-install; \
+	fi
+
 # Build the application
 build:
 	@echo "Building {{ .AppName }}..."
@@ -145,6 +157,14 @@ migrate-down:
 migrate-status:
 	@mkdir -p $(DB_DIR)
 	@./bin/goose -dir $(MIGRATIONS_DIR) sqlite3 $(DB_PATH) status
+{{- end }}
+
+{{- if .Stack.HasFeature "deploy-ansible" }}
+
+# Deploy with Ansible
+deploy:
+	@echo "Deploying {{ .AppName }} with Ansible..."
+	ansible-playbook -i deploy/inventory.ini deploy/playbook.yml
 {{- end }}
 
 {{if has "Tailwind" .Stack.Tags}}

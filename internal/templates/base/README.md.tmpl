@@ -14,6 +14,16 @@ that best fits the stack.
 
 A Git repository is initialized automatically when this project is scaffolded.
 
+Recommended first run:
+
+```bash
+cp .env.example .env  # optional reset if you want fresh defaults
+go mod tidy
+make go
+```
+
+Then open `http://localhost:3333`.
+
 Install dependencies:
 
 ```bash
@@ -57,20 +67,47 @@ The server will start on `http://localhost:3333`
 A ready-to-run `.env` file is generated automatically. The app loads it on startup.
 Use `.env.example` as a reference if you need to reset values.
 
+Typical setup flow:
+
+- Open `.env` before the first real run.
+- Leave local defaults as-is unless you need a different port or database path.
+{{- if .Stack.HasFeature "auth-oauth2" }}
+- Add OAuth provider credentials for each enabled provider and make sure `OAUTH_CALLBACK_BASE` matches the app URL.
+{{- end }}
+{{- if .Stack.HasFeature "auth-magic-link" }}
+- Set `MAGIC_LINK_BASE_URL` to the public URL you want links to use.
+{{- end }}
+{{- if .Stack.HasFeature "email-smtp" }}
+- Fill SMTP credentials before testing email delivery.
+{{- end }}
+{{- if .Stack.HasFeature "payments-yookassa" }}
+- Fill YooKassa credentials and return URL before testing checkout.
+{{- end }}
+
 - `SERVER_ADDR` – listen address (default `:3333`)
 {{- if .Stack.HasFeature "database-sqlite" }}
 - `SQLITE_DSN` – SQLite DSN (empty uses built-in default)
 {{- end }}
-{{- if .Stack.HasFeature "auth-github-oauth2" }}
+{{- if .Stack.HasFeature "auth-oauth2" }}
+{{- if .Stack.HasFeature "oauth-github" }}
 - `GITHUB_CLIENT_ID` – GitHub OAuth client ID
 - `GITHUB_CLIENT_SECRET` – GitHub OAuth client secret
+{{- end }}
+{{- if .Stack.HasFeature "oauth-google" }}
+- `GOOGLE_CLIENT_ID` – Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` – Google OAuth client secret
+{{- end }}
+{{- if .Stack.HasFeature "oauth-yandex" }}
+- `YANDEX_CLIENT_ID` – Yandex OAuth client ID
+- `YANDEX_CLIENT_SECRET` – Yandex OAuth client secret
+{{- end }}
 - `OAUTH_CALLBACK_BASE` – base URL used to build provider callbacks
 {{- end }}
 {{- if .Stack.HasFeature "auth-magic-link" }}
 - `MAGIC_LINK_BASE_URL` – base URL used to build verification links
 - `MAGIC_LINK_TTL_MINUTES` – token lifetime in minutes (default `15`)
 {{- end }}
-{{- if or (.Stack.HasFeature "auth-github-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
 - `SESSION_COOKIE_NAME` – session cookie name (default `sid`)
 - `SESSION_TTL_DAYS` – session lifetime in days (default `30`)
 {{- end }}
@@ -104,14 +141,24 @@ make migrate-status
 Environment for SQLite DSN and migrations directory can be overridden via `DB_DSN` and `MIGRATIONS_DIR`.
 {{- end }}
 
-{{- if .Stack.HasFeature "auth-github-oauth2" }}
-### GitHub OAuth (if enabled)
+{{- if .Stack.HasFeature "auth-oauth2" }}
+### OAuth Providers (if enabled)
 
-Set the following environment variables to activate GitHub OAuth:
+Set the environment variables for each provider you enabled and make sure the callback base matches your app URL:
 
 ```bash
+{{- if .Stack.HasFeature "oauth-github" }}
 export GITHUB_CLIENT_ID=...
 export GITHUB_CLIENT_SECRET=...
+{{- end }}
+{{- if .Stack.HasFeature "oauth-google" }}
+export GOOGLE_CLIENT_ID=...
+export GOOGLE_CLIENT_SECRET=...
+{{- end }}
+{{- if .Stack.HasFeature "oauth-yandex" }}
+export YANDEX_CLIENT_ID=...
+export YANDEX_CLIENT_SECRET=...
+{{- end }}
 export OAUTH_CALLBACK_BASE="http://localhost:3333"
 ```
 
@@ -167,16 +214,25 @@ Routes available:
 
 ## Next Steps
 
-1. Explore the `internal/app` package to understand the application structure
-1. Add routes and handlers in `internal/transport/http/router.go`
-1. Create HTML templates under `web/templates/`
+1. Review `.env` and fill any required credentials for the features you enabled
+1. Start the app with `make go` and verify the home page loads at `http://localhost:3333`
+1. Replace the starter routes and handlers in `internal/transport/http/router.go`
+1. Update pages under `web/templates/` to match your product flow
 1. Customize styles in `web/assets/styles/`
 {{- if .Stack.HasFeature "database-sqlite" }}
-1. Review the helpers in `internal/infrastructure/persistence/sqlite.go`
+1. Review the persistence helpers in `internal/infrastructure/persistence/sqlite.go`
+{{- end }}
+{{- if .Stack.HasFeature "auth-oauth2" }}
+1. Create provider apps and register the generated callback URLs before testing sign-in
+{{- end }}
+{{- if .Stack.HasFeature "auth-magic-link" }}
+1. Test the login flow from `/login` and watch the server logs for generated links
+{{- end }}
+{{- if .Stack.HasFeature "payments-yookassa" }}
+1. Configure YooKassa webhook delivery to `/webhooks/yookassa` from an allowed YooKassa IP range
 {{- end }}
 {{if has "Tailwind" .Stack.Tags}}
-1. Use Tailwind utility classes in your templates
-1. Run `make go` during development to serve the app and rebuild CSS
+1. Use Tailwind utility classes in your templates and keep `make go` running during development
 {{end}}
 
 ## Notes

@@ -42,6 +42,12 @@ type featureBinding struct {
 	value    string
 }
 
+type multiSelectBinding struct {
+	category stacks.FeatureCategory
+	choices  []stacks.Feature
+	values   []string
+}
+
 const sqliteFeatureID = "database-sqlite"
 
 // Run executes the wizard and returns the user's selections.
@@ -108,17 +114,60 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 	step++
 
 	bindings := make([]*featureBinding, 0, len(opts.Categories))
+	multiBindings := make([]*multiSelectBinding, 0)
 
 	var databaseBinding *featureBinding
+	var authBinding *featureBinding
 	authEnabled := func() bool {
 		if databaseBinding == nil {
 			return false
 		}
 		return strings.TrimSpace(databaseBinding.value) == sqliteFeatureID
 	}
+	oauth2Selected := func() bool {
+		if authBinding == nil {
+			return false
+		}
+		return strings.TrimSpace(authBinding.value) == "auth-oauth2"
+	}
 
 	for _, category := range opts.Categories {
 		choices := opts.FeatureChoices[category.ID]
+
+		if category.AllowMultiple && category.ID == stacks.CategoryOAuthProviders {
+			// Multi-select for OAuth providers
+			mBinding := &multiSelectBinding{category: category, choices: choices}
+			defaults := defaultSelection[category.ID]
+			if len(defaults) > 0 {
+				mBinding.values = defaults
+			}
+
+			options := make([]huh.Option[string], 0, len(choices))
+			for _, feature := range choices {
+				options = append(options, huh.NewOption(feature.Name, feature.ID))
+			}
+
+			multiSelect := huh.NewMultiSelect[string]().
+				Title(stepLabel(step, totalSteps, category.Name)).
+				Options(options...).
+				Value(&mBinding.values)
+
+			if description := strings.TrimSpace(category.Description); description != "" {
+				multiSelect.Description(description)
+			}
+
+			multiBindings = append(multiBindings, mBinding)
+
+			group := huh.NewGroup(multiSelect)
+			group.WithHideFunc(func() bool {
+				return !oauth2Selected()
+			})
+
+			groups = append(groups, group)
+			step++
+			continue
+		}
+
 		binding := &featureBinding{category: category, choices: choices}
 
 		defaultID := first(defaultSelection[category.ID])
@@ -158,9 +207,24 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		if category.ID == stacks.CategoryDatabase {
 			databaseBinding = binding
 		}
+		if category.ID == stacks.CategoryAuth {
+			authBinding = binding
+		}
 
 		group := huh.NewGroup(selectField)
 		if category.ID == stacks.CategoryAuth {
+			group.WithHideFunc(func() bool {
+				return !authEnabled()
+			})
+		}
+		// Hide email/payments/deploy categories that have "none" as default
+		// unless DB is SQLite (for payments)
+		if category.ID == stacks.CategoryEmail {
+			group.WithHideFunc(func() bool {
+				return !authEnabled()
+			})
+		}
+		if category.ID == stacks.CategoryPayments {
 			group.WithHideFunc(func() bool {
 				return !authEnabled()
 			})
@@ -225,6 +289,13 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		}
 
 		selection := stacks.SelectionFromIDs(selected)
+		// Add multi-select values
+		for _, mb := range multiBindings {
+			if oauth2Selected() && len(mb.values) > 0 {
+				selection[mb.category.ID] = mb.values
+			}
+		}
+
 		stack, err := stacks.Compose(selection)
 		if err == nil {
 			lines = append(lines, "")
@@ -257,6 +328,16 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 			}
 
 			lines = append(lines, fmt.Sprintf("  %s: %s", categoryName, binding.value))
+		}
+		for _, mb := range multiBindings {
+			if oauth2Selected() && len(mb.values) > 0 {
+				if !featureBlocksAdded {
+					lines = append(lines, "")
+					lines = append(lines, "Selections")
+					featureBlocksAdded = true
+				}
+				lines = append(lines, fmt.Sprintf("  %s: %s", mb.category.Name, strings.Join(mb.values, ", ")))
+			}
 		}
 
 		lines = append(lines, "")
@@ -334,11 +415,20 @@ func Run(opts Options, input io.Reader, output io.Writer) (Result, error) {
 		selection[binding.category.ID] = binding.value
 	}
 
+	result := stacks.SelectionFromIDs(selection)
+
+	// Add multi-select OAuth providers
+	for _, mb := range multiBindings {
+		if oauth2Selected() && len(mb.values) > 0 {
+			result[mb.category.ID] = mb.values
+		}
+	}
+
 	return Result{
 		AppName:    appName,
 		ModulePath: modulePath,
 		OutputDir:  outputDir,
-		Selection:  stacks.SelectionFromIDs(selection),
+		Selection:  result,
 		Force:      force,
 	}, nil
 }
