@@ -1,1 +1,4 @@
+{{- if .Stack.HasFeature "frontend-ui-sdk" }}
+@layer ui-sdk;
+{{- end }}
 @import "tailwindcss";

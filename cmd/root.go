@@ -17,7 +17,7 @@ func RootCommand() *cobra.Command {
 		Short: "Scaffold hypermedia-driven Go applications with opinionated stacks.",
 		Long: `Fullkek bootstraps hypermedia-first web applications written in Go.
 
-Choose an opinionated stack—like Go + HTMX + Tailwind CSS or Go + DataStar + Bootstrap—and
+Choose an opinionated stack—like Go + HTMX + Tailwind CSS or Go + ui-sdk + DaisyUI—and
 build a project skeleton that is ready for templates, assets, and server wiring.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,

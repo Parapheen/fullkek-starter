@@ -18,7 +18,7 @@ var categories = []FeatureCategory{
 	{
 		ID:          CategoryFrontend,
 		Name:        "Frontend runtime",
-		Description: "Choose the hypermedia enhancement layer.",
+		Description: "Choose the frontend behavior layer.",
 		Required:    true,
 	},
 	{
@@ -85,6 +85,19 @@ var featureCatalog = []Feature{
 			{
 				Source:      "features/frontend/htmx/assets/scripts/htmx.min.js.tmpl",
 				Destination: "public/assets/scripts/htmx.min.js",
+			},
+		},
+	},
+	{
+		ID:          "frontend-ui-sdk",
+		CategoryID:  CategoryFrontend,
+		Name:        "ui-sdk",
+		Description: "Framework-free web components for server-rendered interfaces.",
+		Tags:        []string{"ui-sdk"},
+		Templates: []Template{
+			{
+				Source:      "features/frontend/ui-sdk/internal/transport/http/render_ui_sdk.go.tmpl",
+				Destination: "internal/transport/http/render_ui_sdk.go",
 			},
 		},
 	},

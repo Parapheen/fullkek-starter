@@ -126,8 +126,13 @@ func (r *Router) SetAuthService(svc *appauth.Service) {
 {{- end }}
 
 func (r *Router) home(w http.ResponseWriter, req *http.Request) {
-{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
-    if err := renderPage(w, req, indexPage, nil); err != nil {
+{{- if or (.Stack.HasFeature "frontend-ui-sdk") (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+    {{- if .Stack.HasFeature "frontend-ui-sdk" }}
+    err := renderUISDKHome(w, req, indexPage)
+    {{- else }}
+    err := renderPage(w, req, indexPage, nil)
+    {{- end }}
+    if err != nil {
         http.Error(w, fmt.Sprintf("render error: %v", err), http.StatusInternalServerError)
         return
     }

@@ -1,0 +1,36 @@
+package http
+
+{{- if or (.Stack.HasFeature "auth-oauth2") (.Stack.HasFeature "auth-magic-link") }}
+
+import "net/http"
+
+func renderUISDKHome(w http.ResponseWriter, req *http.Request, path string) error {
+	return renderPage(w, req, path, nil)
+}
+{{- else }}
+
+import (
+	"html/template"
+	"net/http"
+	"path/filepath"
+
+	"github.com/justinas/nosurf"
+)
+
+func renderUISDKHome(w http.ResponseWriter, req *http.Request, path string) error {
+	dir := filepath.Join("web", "templates")
+	page, err := template.ParseFiles(
+		filepath.Join(dir, "base.html"),
+		filepath.Join(dir, "navbar.html"),
+		filepath.Join(dir, "footer.html"),
+		path,
+	)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	data := struct{ CSRFToken string }{CSRFToken: nosurf.Token(req)}
+	return page.ExecuteTemplate(w, filepath.Base(path), data)
+}
+{{- end }}

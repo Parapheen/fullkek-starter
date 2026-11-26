@@ -66,5 +66,8 @@
       <div class="mt-6 text-sm font-semibold uppercase tracking-[0.3em] text-base-content/60">Product Teams Everywhere</div>
     </div>
   </section>
+{{- if .Stack.HasFeature "frontend-ui-sdk" }}
+{{ printf "%s template \"ui-sdk-showcase\" . %s\n" $lb $rb }}
+{{- end }}
 {{ printf "%s end %s\n" $lb $rb }}
 {{ printf "%s template \"base\" . %s\n" $lb $rb }}

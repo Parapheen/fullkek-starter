@@ -1,3 +1,6 @@
+{{- if .Stack.HasFeature "frontend-ui-sdk" }}
+@layer ui-sdk;
+{{- end }}
 @import "tailwindcss";
 
 /* Exclude the local CLI and plugin bundles from Tailwind's content graph */

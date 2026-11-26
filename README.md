@@ -79,6 +79,17 @@ If `--no-ui` is used and `[app-name]` is omitted, the command will error. Withou
 - Frontend runtime:
 
   - `frontend-htmx`: HTMX request/response swaps
+  - `frontend-ui-sdk`: ui-sdk web components in server-rendered Go templates
+
+  Select ui-sdk in the wizard or run:
+
+  ```sh
+  fullkek new --no-ui --frontend frontend-ui-sdk my-app
+  ```
+
+  The generated app loads a pinned browser module from ui-sdk.dev and includes
+  working tabs, an accordion, a toggle, and a dialog on the home page.
+  No JavaScript build step is required.
 
 - Styling system:
 

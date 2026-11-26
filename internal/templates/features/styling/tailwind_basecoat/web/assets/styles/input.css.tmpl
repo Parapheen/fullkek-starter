@@ -4,6 +4,9 @@
  * standalone CLI (see Makefile). Basecoat core styles are provided via CDN in
  * the generated templates so you can extend or override them here as needed.
  */
+{{- if .Stack.HasFeature "frontend-ui-sdk" }}
+@layer ui-sdk;
+{{- end }}
 @import "tailwindcss";
 
 /* Add custom component overrides below. */

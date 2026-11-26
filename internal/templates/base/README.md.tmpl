@@ -236,6 +236,17 @@ Routes available:
 {{end}}
 
 ## Notes
+{{- if .Stack.HasFeature "frontend-ui-sdk" }}
+
+### ui-sdk
+
+The shared layout in `web/templates/base.html` loads the pinned ui-sdk browser
+module from ui-sdk.dev. It registers components when their `ui-*` elements
+appear in the page. The home-page showcase demonstrates tabs, an accordion, a
+toggle, and a dialog. Add more components directly to your Go templates and
+style them with the selected CSS stack. See the
+[ui-sdk web component docs](https://ui-sdk.dev/web.md).
+{{- end }}
 {{if has "Tailwind" .Stack.Tags}}
 ### Tailwind CSS
 
